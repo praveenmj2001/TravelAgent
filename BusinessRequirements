@@ -1,0 +1,35 @@
+A	High Level Business Requirement
+1	Feature for Groups and Preferences.
+1.1	Create Travel Groups like Solo, Friends, Family, Work.
+1.2	Ability to have a friends group
+1.3	Ability to have a Family group
+1.4	Ability to have a work group
+1.5	Ability to do Solo travels.
+1.6	Ability to set Time limits
+1.7	Ability set Food Prefences and times.
+1.9	Ability to set Vehile abilities and types
+1.11	Ability to toggle intermediate or destination events
+	
+2	Trip specific info via a chat
+2.1	# of people
+2.2	chat or dictate via voice.
+2.3	Type of hotels
+2.4	Type of car rentals
+	
+3	Feature for rests and intermediate or final destinations.
+3.1	Suggest rest stops and or intermediate destinations based on preferences and or user prompts.
+3.2	Show possible interest groups and categories.
+3.3	When user selects a category or interests, it then comes back with the interests.
+3.4	Ability to have google search independent of suggestions
+3.5	Ability to choose intermediate versus destination interests
+	
+4.1	Result should be a list of possible routes and times.
+4.2	Abiltity to click on the output and open a google MAP to show the route.
+	
+5	Final Selection and Saving to History
+5.1	Save a selected option
+5.2	Send to Google Maps for planning
+5.3	Save to Personal History
+	
+Misc Notes	AI approach versus traditional approach. Landing Page - Open
+	Describe a travel plan using Audio or typing
