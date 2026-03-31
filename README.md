@@ -5,6 +5,11 @@
 - Node.js 18+
 - A Google Cloud project with OAuth 2.0 credentials
 
+## Stack
+
+- **Frontend:** Next.js 16.2.1 (App Router, Turbopack), NextAuth v5, Tailwind CSS v4
+- **Backend:** FastAPI + Uvicorn, Google OAuth token verification
+
 ## 1. Get Google OAuth Credentials
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
@@ -24,7 +29,7 @@ GOOGLE_CLIENT_ID=<your-client-id>
 FRONTEND_URL=http://localhost:3000
 ```
 
-**Frontend** (`frontend/.env.local`):
+**Frontend** (`.env.local` at project root):
 ```
 AUTH_GOOGLE_ID=<your-client-id>
 AUTH_GOOGLE_SECRET=<your-client-secret>
@@ -36,8 +41,6 @@ NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
 
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn main:app --reload
 ```
@@ -46,13 +49,30 @@ Backend runs at http://localhost:8000
 
 ## 4. Run the frontend
 
+From the **project root**:
+
 ```bash
-cd frontend
 npm install
 npm run dev
 ```
 
 Frontend runs at http://localhost:3000
+
+## Project Structure
+
+```
+TravelPlanner/
+├── app/              # Next.js App Router pages
+│   ├── api/          # NextAuth route handler
+│   ├── signin/       # Sign-in page
+│   └── welcome/      # Post-auth welcome page
+├── backend/          # FastAPI backend
+│   ├── main.py
+│   └── requirements.txt
+├── auth.ts           # NextAuth config (Google provider)
+├── next.config.ts
+└── .env.local        # Frontend environment variables (not committed)
+```
 
 ## Flow
 
