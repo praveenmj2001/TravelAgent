@@ -108,10 +108,10 @@ export default function ChatClient({
 
   return (
     <div className="flex flex-col h-screen">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-        <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100">{title}</h1>
-        <p className="text-xs text-gray-500 dark:text-gray-400">Road trip assistant · Powered by Claude</p>
+      {/* Conversation title */}
+      <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3">
+        <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200">{title}</h1>
+        <p className="text-xs text-gray-400 dark:text-gray-500">Road trip assistant · Powered by Claude</p>
       </div>
 
       {/* Messages */}
