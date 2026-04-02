@@ -27,6 +27,7 @@
 # python
 __pycache__/
 *.pyc
+*.db
 
 # debug
 npm-debug.log*
