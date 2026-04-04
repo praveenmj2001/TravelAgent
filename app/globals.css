@@ -2,9 +2,125 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ── Base (spring default) ─────────────────────────────────────────────── */
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Primary action color */
+  --t-primary:        #047857;
+  --t-primary-hover:  #065f46;
+  --t-primary-light:  #d1fae5;
+  --t-primary-text:   #064e3b;
+  --t-ring:           #6ee7b7;
+
+  /* Hero gradient (landing page, signin) */
+  --t-hero-from:      #022c22;
+  --t-hero-mid:       #064e3b;
+  --t-hero-to:        #065f46;
+
+  /* Chat bubble */
+  --t-bubble-user:    #047857;
+
+  /* Sidebar */
+  --t-sidebar-bg:     #f0fdf4;
+  --t-sidebar-active: #a7f3d0;
+  --t-sidebar-text:   #064e3b;
+
+  /* Full app background gradient */
+  --t-app-from:       #ecfdf5;
+  --t-app-mid:        #d1fae5;
+  --t-app-to:         #fce7f3;
+
+  /* TopBar tint */
+  --t-topbar-bg:      #f0fdf4;
+
+  /* Accent (for decorative elements) */
+  --t-accent:         #db2777;
+}
+
+/* ── Spring 🌸 ─────────────────────────────────────────────────────────── */
+html.theme-spring {
+  --t-primary:        #047857;
+  --t-primary-hover:  #065f46;
+  --t-primary-light:  #d1fae5;
+  --t-primary-text:   #064e3b;
+  --t-ring:           #6ee7b7;
+  --t-hero-from:      #022c22;
+  --t-hero-mid:       #064e3b;
+  --t-hero-to:        #065f46;
+  --t-bubble-user:    #047857;
+  --t-sidebar-bg:     #f0fdf4;
+  --t-sidebar-active: #a7f3d0;
+  --t-sidebar-text:   #064e3b;
+  --t-app-from:       #ecfdf5;
+  --t-app-mid:        #d1fae5;
+  --t-app-to:         #fce7f3;
+  --t-topbar-bg:      #f0fdf4;
+  --t-accent:         #db2777;
+}
+
+/* ── Summer ☀️ ─────────────────────────────────────────────────────────── */
+html.theme-summer {
+  --t-primary:        #b45309;
+  --t-primary-hover:  #92400e;
+  --t-primary-light:  #fef3c7;
+  --t-primary-text:   #78350f;
+  --t-ring:           #fcd34d;
+  --t-hero-from:      #0f0a00;
+  --t-hero-mid:       #78350f;
+  --t-hero-to:        #b45309;
+  --t-bubble-user:    #d97706;
+  --t-sidebar-bg:     #fffbeb;
+  --t-sidebar-active: #fde68a;
+  --t-sidebar-text:   #78350f;
+  --t-app-from:       #fffbeb;
+  --t-app-mid:        #fef3c7;
+  --t-app-to:         #e0f2fe;
+  --t-topbar-bg:      #fffbeb;
+  --t-accent:         #0284c7;
+}
+
+/* ── Autumn 🍂 ─────────────────────────────────────────────────────────── */
+html.theme-autumn {
+  --t-primary:        #c2410c;
+  --t-primary-hover:  #9a3412;
+  --t-primary-light:  #ffedd5;
+  --t-primary-text:   #7c2d12;
+  --t-ring:           #fdba74;
+  --t-hero-from:      #150200;
+  --t-hero-mid:       #7c2d12;
+  --t-hero-to:        #c2410c;
+  --t-bubble-user:    #ea580c;
+  --t-sidebar-bg:     #fff7ed;
+  --t-sidebar-active: #fed7aa;
+  --t-sidebar-text:   #7c2d12;
+  --t-app-from:       #fff7ed;
+  --t-app-mid:        #ffedd5;
+  --t-app-to:         #fef2f2;
+  --t-topbar-bg:      #fff7ed;
+  --t-accent:         #b45309;
+}
+
+/* ── Winter ❄️ ─────────────────────────────────────────────────────────── */
+html.theme-winter {
+  --t-primary:        #1d4ed8;
+  --t-primary-hover:  #1e40af;
+  --t-primary-light:  #dbeafe;
+  --t-primary-text:   #1e3a8a;
+  --t-ring:           #93c5fd;
+  --t-hero-from:      #070d24;
+  --t-hero-mid:       #172554;
+  --t-hero-to:        #1e3a8a;
+  --t-bubble-user:    #2563eb;
+  --t-sidebar-bg:     #eff6ff;
+  --t-sidebar-active: #bfdbfe;
+  --t-sidebar-text:   #1e3a8a;
+  --t-app-from:       #eff6ff;
+  --t-app-mid:        #dbeafe;
+  --t-app-to:         #f0f9ff;
+  --t-topbar-bg:      #eff6ff;
+  --t-accent:         #7c3aed;
 }
 
 @theme inline {

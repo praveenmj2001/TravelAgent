@@ -20,7 +20,7 @@ export default async function WelcomePage() {
             <img
               src={user.image}
               alt={user.name ?? "avatar"}
-              className="w-20 h-20 rounded-full border-4 border-indigo-200"
+              className="w-20 h-20 rounded-full border-4 border-[var(--t-primary-light)]"
             />
           )}
           <div>

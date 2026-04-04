@@ -13,9 +13,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Travel Planner",
-  description: "Plan your next road trip",
+  title: "RoadAI — Plan Your Road Trip",
+  description: "AI-powered road trip planning powered by Claude",
 };
+
+const themeScript = `(function(){try{
+  var d=document.documentElement;
+  if(localStorage.getItem('dark-mode')==='true')d.classList.add('dark');
+  var seasons=['spring','summer','autumn','winter'];
+  var saved=localStorage.getItem('season');
+  if(!saved){var m=new Date().getMonth();saved=m>=2&&m<=4?'spring':m>=5&&m<=7?'summer':m>=8&&m<=10?'autumn':'winter';}
+  seasons.forEach(function(s){d.classList.remove('theme-'+s);});
+  d.classList.add('theme-'+saved);
+}catch(e){}})()`;
 
 export default function RootLayout({
   children,
@@ -27,14 +37,10 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark')document.documentElement.classList.add('dark')}catch(e){}})()`,
-          }}
-        />
-      </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        {children}
+      </body>
     </html>
   );
 }

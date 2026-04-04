@@ -32,8 +32,7 @@ export default function Sidebar({ userEmail }: { userEmail: string }) {
 
   // Load dark mode preference
   useEffect(() => {
-    const saved = localStorage.getItem("theme");
-    setDark(saved === "dark");
+    setDark(localStorage.getItem("dark-mode") === "true");
   }, []);
 
   // Fetch conversations on mount and on custom event
@@ -46,7 +45,7 @@ export default function Sidebar({ userEmail }: { userEmail: string }) {
   function toggleDark() {
     const next = !dark;
     setDark(next);
-    localStorage.setItem("theme", next ? "dark" : "light");
+    localStorage.setItem("dark-mode", String(next));
     document.documentElement.classList.toggle("dark", next);
   }
 
@@ -64,15 +63,16 @@ export default function Sidebar({ userEmail }: { userEmail: string }) {
 
   return (
     <div
-      className={`flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 h-screen sticky top-0 transition-all duration-300 ${
+      className={`flex flex-col dark:bg-gray-900 border-r border-black/10 dark:border-gray-700 h-screen sticky top-0 transition-all duration-300 ${
         collapsed ? "w-14" : "w-60"
       }`}
+      style={{ backgroundColor: "var(--t-sidebar-bg)" }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700">
+      <div className="flex items-center justify-between p-3 border-b border-black/10 dark:border-gray-700">
         {!collapsed && (
-          <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 truncate">
-            🚗 Road Trips
+          <span className="text-sm font-semibold text-[var(--t-primary)] truncate">
+            🚗 RoadAI
           </span>
         )}
         <button
@@ -96,7 +96,7 @@ export default function Sidebar({ userEmail }: { userEmail: string }) {
       <div className="p-2">
         <button
           onClick={handleNewChat}
-          className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors ${
+          className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-[var(--t-primary)] hover:bg-[var(--t-primary-hover)] text-white text-sm font-medium transition-colors ${
             collapsed ? "justify-center" : ""
           }`}
           title="New Chat"
@@ -133,7 +133,7 @@ export default function Sidebar({ userEmail }: { userEmail: string }) {
                 href={`/chat?id=${c.id}`}
                 className={`group flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
                   activeId === c.id
-                    ? "bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400"
+                    ? "bg-[var(--t-sidebar-active)] text-[var(--t-sidebar-text)]"
                     : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                 }`}
               >
@@ -153,8 +153,26 @@ export default function Sidebar({ userEmail }: { userEmail: string }) {
         )}
       </nav>
 
+      {/* Settings link */}
+      <div className="px-2 pb-1 border-t border-black/10 dark:border-gray-700 pt-2">
+        <Link
+          href="/settings"
+          className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-colors ${
+            pathname === "/settings"
+              ? "bg-[var(--t-sidebar-active)] text-[var(--t-sidebar-text)]"
+              : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+          } ${collapsed ? "justify-center" : ""}`}
+          title="Settings & Saved Trips"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          {!collapsed && <span>Profile & Trips</span>}
+        </Link>
+      </div>
+
       {/* Dark mode toggle */}
-      <div className="p-3 border-t border-gray-100 dark:border-gray-700">
+      <div className="p-3 border-t border-black/10 dark:border-gray-700">
         <button
           onClick={toggleDark}
           className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${
