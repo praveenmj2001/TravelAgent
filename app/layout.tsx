@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "RoadAI — Plan Your Road Trip",
-  description: "AI-powered road trip planning powered by Claude",
+  description: "AI-powered road trip planning",
 };
 
 const ALL_THEMES = [

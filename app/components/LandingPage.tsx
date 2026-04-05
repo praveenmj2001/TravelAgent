@@ -14,7 +14,7 @@ const FEATURES = [
       </svg>
     ),
     title: "Smart Routes",
-    desc: "Claude plans your entire road trip — scenic byways, hidden gems, drive times, and alternatives you'd never find on your own.",
+    desc: "RoadAI plans your entire road trip — scenic byways, hidden gems, drive times, and alternatives you'd never find on your own.",
   },
   {
     icon: (
@@ -47,7 +47,7 @@ const FEATURES = [
 
 const STEPS = [
   { number: "01", title: "Sign in with Google", desc: "One click, no passwords. You're in." },
-  { number: "02", title: "Tell Claude your dream trip", desc: "Destination, dates, vibe — or just wing it. Claude figures it out." },
+  { number: "02", title: "Tell RoadAI your dream trip", desc: "Destination, dates, vibe — or just wing it. RoadAI figures it out." },
   { number: "03", title: "Hit the road", desc: "Your personalized route is ready. Save it, tweak it, and go." },
 ];
 
@@ -105,7 +105,7 @@ export default function LandingPage() {
       <section className="min-h-screen flex flex-col items-center justify-center text-center px-6 pt-20" style={{ background: "linear-gradient(to bottom right, var(--t-hero-from), var(--t-hero-mid), var(--t-hero-to))" }}>
         <div className="inline-flex items-center gap-2 bg-white/10 text-white/80 text-xs font-medium px-4 py-1.5 rounded-full mb-8 border border-white/20">
           <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-          Powered by Claude AI
+          AI Powered
         </div>
 
         <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight max-w-4xl">
@@ -216,7 +216,7 @@ export default function LandingPage() {
           <span className="text-lg">🚗</span>
           <span className="text-white font-semibold">RoadAI</span>
         </div>
-        <p>Built with Claude AI · {new Date().getFullYear()}</p>
+        <p>Built with RoadAI · {new Date().getFullYear()}</p>
       </footer>
 
     </div>

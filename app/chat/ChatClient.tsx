@@ -303,7 +303,7 @@ export default function ChatClient({
         >
           <div>
             <h1 className="text-sm font-semibold text-[var(--t-primary-text)] dark:text-gray-200">{title}</h1>
-            <p className="text-xs text-gray-500 dark:text-gray-500">Road trip assistant · Powered by Claude</p>
+            <p className="text-xs text-gray-500 dark:text-gray-500">Road trip assistant · AI Powered</p>
           </div>
           <div className="flex items-center gap-2">
             {activeWaypoints.length > 0 && (
