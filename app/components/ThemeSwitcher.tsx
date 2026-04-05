@@ -34,7 +34,7 @@ const THEME_GROUPS = [
   },
 ] as const;
 
-const ALL_THEMES = THEME_GROUPS.flatMap((g) => g.themes);
+const ALL_THEMES: { key: string; emoji: string; name: string }[] = THEME_GROUPS.flatMap((g) => [...g.themes]);
 const DARK_BG_THEMES = new Set(["anime", "hot", "indian", "mideast", "viking"]);
 
 function getDefaultSeason() {
