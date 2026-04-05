@@ -7,7 +7,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from dotenv import load_dotenv
 from database import engine, get_db, SessionLocal
-from models import Base, Conversation, Message, SavedTrip
+from models import Base, Conversation, Message, SavedTrip, UserProfile
 from datetime import datetime, timezone
 import anthropic
 import json
@@ -16,6 +16,29 @@ import os
 load_dotenv()
 
 Base.metadata.create_all(bind=engine)
+
+# Add new persona columns to existing conversations table if missing (safe migration)
+def _migrate_db():
+    from sqlalchemy import text, inspect
+    with engine.connect() as conn:
+        inspector = inspect(engine)
+        existing = {col["name"] for col in inspector.get_columns("conversations")}
+        new_cols = {
+            "travelling_as": "VARCHAR",
+            "travel_style":  "VARCHAR",
+            "trip_length":   "VARCHAR",
+            "interests":     "VARCHAR",
+            "dietary":       "VARCHAR",
+            "meet_location": "VARCHAR",
+            "meet_time":     "VARCHAR",
+            "meet_date":     "VARCHAR",
+        }
+        for col, col_type in new_cols.items():
+            if col not in existing:
+                conn.execute(text(f"ALTER TABLE conversations ADD COLUMN {col} {col_type}"))
+        conn.commit()
+
+_migrate_db()
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
@@ -57,6 +80,7 @@ class CreateConversationRequest(BaseModel):
 class SendMessageRequest(BaseModel):
     content: str
     user_email: str
+    user_location: str | None = None
 
 
 class SaveTripRequest(BaseModel):
@@ -64,6 +88,28 @@ class SaveTripRequest(BaseModel):
     conversation_id: str | None = None
     title: str
     content: str
+
+
+class UpsertProfileRequest(BaseModel):
+    user_email: str
+    display_name: str | None = None
+    travel_persona: str | None = None
+    travel_style: str | None = None
+    trip_length: str | None = None
+    interests: str | None = None
+    home_city: str | None = None
+    onboarded: str | None = None
+
+
+class TripPersonaRequest(BaseModel):
+    travelling_as: str | None = None
+    travel_style: str | None = None
+    trip_length: str | None = None
+    interests: str | None = None   # comma-separated
+    dietary: str | None = None     # comma-separated
+    meet_location: str | None = None
+    meet_time: str | None = None
+    meet_date: str | None = None
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -83,6 +129,46 @@ def generate_title(user_message: str, ai_response: str) -> str:
         }],
     )
     return response.content[0].text.strip()
+
+
+def build_persona_context(profile: UserProfile) -> str:
+    """Turn a UserProfile into a natural-language context string for Claude."""
+    parts = []
+    persona_labels = {
+        "solo": "travelling solo",
+        "family": "travelling with family (including kids)",
+        "couple": "travelling as a couple",
+        "friends": "travelling with a group of friends",
+        "work": "on a work trip",
+    }
+    style_labels = {
+        "adventure": "adventurous (hiking, outdoors, adrenaline)",
+        "relaxed": "relaxed and slow-paced",
+        "cultural": "culturally curious (museums, history, local life)",
+        "foodie": "a food lover (restaurants, markets, local cuisine)",
+        "luxury": "preferring luxury and comfort",
+        "budget": "budget-conscious",
+    }
+    length_labels = {
+        "weekend": "weekend getaways (2-3 days)",
+        "week": "week-long trips (5-7 days)",
+        "twoweeks": "two-week trips",
+        "month": "extended trips (a month or more)",
+    }
+    if profile.travel_persona:
+        parts.append(f"- Travel group: {persona_labels.get(profile.travel_persona, profile.travel_persona)}")
+    if profile.travel_style:
+        parts.append(f"- Travel style: {style_labels.get(profile.travel_style, profile.travel_style)}")
+    if profile.trip_length:
+        parts.append(f"- Typical trip length: {length_labels.get(profile.trip_length, profile.trip_length)}")
+    if profile.interests:
+        interests = ", ".join(profile.interests.split(","))
+        parts.append(f"- Interests: {interests}")
+    if profile.home_city:
+        parts.append(f"- Home city: {profile.home_city}")
+    if not parts:
+        return ""
+    return "User travel profile:\n" + "\n".join(parts)
 
 
 # ── Auth ─────────────────────────────────────────────────────────────────────
@@ -136,6 +222,62 @@ def get_conversation(conversation_id: str, db: Session = Depends(get_db)):
         "id": conv.id,
         "title": conv.title,
         "messages": [{"role": m.role, "content": m.content} for m in conv.messages],
+        "persona": {
+            "travelling_as": conv.travelling_as,
+            "travel_style":  conv.travel_style,
+            "trip_length":   conv.trip_length,
+            "interests":     conv.interests,
+            "dietary":       conv.dietary,
+            "meet_location": conv.meet_location,
+            "meet_time":     conv.meet_time,
+            "meet_date":     conv.meet_date,
+        },
+    }
+
+
+@app.patch("/conversations/{conversation_id}/persona")
+def update_trip_persona(conversation_id: str, body: TripPersonaRequest, db: Session = Depends(get_db)):
+    conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    for field in ["travelling_as", "travel_style", "trip_length", "interests", "dietary", "meet_location", "meet_time", "meet_date"]:
+        val = getattr(body, field)
+        if val is not None:
+            setattr(conv, field, val)
+    conv.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    return {
+        "travelling_as": conv.travelling_as,
+        "travel_style":  conv.travel_style,
+        "trip_length":   conv.trip_length,
+        "interests":     conv.interests,
+        "dietary":       conv.dietary,
+        "meet_location": conv.meet_location,
+        "meet_time":     conv.meet_time,
+        "meet_date":     conv.meet_date,
+    }
+
+
+@app.get("/conversations/last-persona")
+def get_last_persona(user_email: str, travelling_as: str, db: Session = Depends(get_db)):
+    """Return the most recent persona for a given travelling_as type, for pre-fill."""
+    conv = (
+        db.query(Conversation)
+        .filter(
+            Conversation.user_email == user_email,
+            Conversation.travelling_as == travelling_as,
+        )
+        .order_by(Conversation.updated_at.desc())
+        .first()
+    )
+    if not conv:
+        return {}
+    return {
+        "travelling_as": conv.travelling_as,
+        "travel_style":  conv.travel_style,
+        "trip_length":   conv.trip_length,
+        "interests":     conv.interests,
+        "dietary":       conv.dietary,
     }
 
 
@@ -160,6 +302,65 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, db
     is_first_exchange = len(all_messages) == 1
     current_title = conv.title
 
+    # Build system prompt with per-trip persona + location context
+    context_lines = []
+
+    if conv.travelling_as == "meetup":
+        # Meetup mode — different system prompt focus
+        meetup_parts = [
+            "This is a MEETUP planning session, not a road trip.",
+            "The user needs help finding a quiet place with free WiFi suitable for a meeting, discussion, or focused work session.",
+            "Suggest specific venues: cafés, libraries, co-working spaces, hotel lobbies, or quiet restaurants.",
+            "Prioritise: quiet atmosphere, free WiFi, comfortable seating, good for conversation or focused work.",
+            "",
+            "IMPORTANT — timing and hours:",
+            "- Always mention the typical opening hours of each venue you suggest.",
+            "- Cross-check those hours against the user's preferred time of day / meeting date.",
+            "- If the venue might be closed, crowded, or unsuitable at that time, say so clearly and suggest an alternative.",
+            "- If the user has only given a vague time (e.g. 'afternoon') and no exact start time or duration, ask them:",
+            "  'What time are you planning to arrive, and roughly how long do you need the space?' — so you can confirm the venue fits.",
+            "- If the meeting date is a weekend or public holiday, note that hours may differ and flag it.",
+            "- If no time or date info is provided at all, ask before suggesting venues.",
+        ]
+        if conv.meet_location:
+            meetup_parts.append(f"Meeting location/area: {conv.meet_location}")
+        if conv.meet_time:
+            meetup_parts.append(f"Preferred time of day: {conv.meet_time}")
+        if conv.meet_date:
+            meetup_parts.append(f"Meeting date: {'today' if conv.meet_date == 'today' else conv.meet_date} — check if this falls on a weekend or public holiday.")
+        if body.user_location:
+            meetup_parts.append(f"User's current location: {body.user_location}")
+        context_lines.append("\n".join(meetup_parts))
+        system_prompt = ROAD_TRIP_SYSTEM_PROMPT
+        if context_lines:
+            system_prompt = "\n\n".join(context_lines) + "\n\n" + ROAD_TRIP_SYSTEM_PROMPT
+    else:
+        persona_parts = []
+        TRAVELLING_AS_LABELS = {"solo": "travelling solo", "couple": "travelling as a couple", "family": "travelling with family (including kids)", "friends": "travelling with a group of friends", "work": "on a work trip"}
+        STYLE_LABELS = {"adventure": "adventurous (hiking, outdoors, adrenaline)", "relaxed": "relaxed and slow-paced", "cultural": "culturally curious (museums, history, local life)", "foodie": "a food lover (restaurants, markets, local cuisine)", "luxury": "preferring luxury and comfort", "budget": "budget-conscious"}
+        LENGTH_LABELS = {"1day": "day trips (1 day)", "weekend": "weekend getaways (2-3 days)", "week": "week-long trips (5-7 days)", "twoweeks": "two-week trips", "month": "extended trips (a month or more)"}
+
+        if conv.travelling_as:
+            persona_parts.append(f"- Travel group: {TRAVELLING_AS_LABELS.get(conv.travelling_as, conv.travelling_as)}")
+        if conv.travel_style:
+            persona_parts.append(f"- Travel style: {STYLE_LABELS.get(conv.travel_style, conv.travel_style)}")
+        if conv.trip_length:
+            persona_parts.append(f"- Typical trip length: {LENGTH_LABELS.get(conv.trip_length, conv.trip_length)}")
+        if conv.interests:
+            persona_parts.append(f"- Interests: {', '.join(conv.interests.split(','))}")
+        if conv.dietary:
+            persona_parts.append(f"- Dietary preferences: {', '.join(conv.dietary.split(','))}")
+
+        if persona_parts:
+            context_lines.append("User travel profile for this trip:\n" + "\n".join(persona_parts))
+
+        if body.user_location:
+            context_lines.append(f"User's current location (use as starting point unless they say otherwise): {body.user_location}")
+
+        system_prompt = ROAD_TRIP_SYSTEM_PROMPT
+        if context_lines:
+            system_prompt = "\n\n".join(context_lines) + "\n\n" + ROAD_TRIP_SYSTEM_PROMPT
+
     async def generate():
         # Use a fresh session — the Depends session may close before this generator finishes
         session = SessionLocal()
@@ -170,7 +371,7 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, db
             with client.messages.stream(
                 model="claude-sonnet-4-6",
                 max_tokens=2048,
-                system=ROAD_TRIP_SYSTEM_PROMPT,
+                system=system_prompt,
                 messages=history,
             ) as stream:
                 for text_chunk in stream.text_stream:
@@ -247,6 +448,60 @@ def delete_saved_trip(trip_id: str, db: Session = Depends(get_db)):
     db.delete(trip)
     db.commit()
     return {"ok": True}
+
+
+# ── Profile ──────────────────────────────────────────────────────────────────
+
+@app.get("/profile")
+def get_profile(user_email: str, db: Session = Depends(get_db)):
+    profile = db.query(UserProfile).filter(UserProfile.user_email == user_email).first()
+    if not profile:
+        return {"onboarded": "false"}
+    return {
+        "user_email": profile.user_email,
+        "display_name": profile.display_name,
+        "travel_persona": profile.travel_persona,
+        "travel_style": profile.travel_style,
+        "trip_length": profile.trip_length,
+        "interests": profile.interests,
+        "home_city": profile.home_city,
+        "onboarded": profile.onboarded,
+    }
+
+
+@app.post("/profile")
+def upsert_profile(body: UpsertProfileRequest, db: Session = Depends(get_db)):
+    profile = db.query(UserProfile).filter(UserProfile.user_email == body.user_email).first()
+    if profile:
+        for field in ["display_name", "travel_persona", "travel_style", "trip_length", "interests", "home_city", "onboarded"]:
+            val = getattr(body, field)
+            if val is not None:
+                setattr(profile, field, val)
+        profile.updated_at = datetime.now(timezone.utc)
+    else:
+        profile = UserProfile(
+            user_email=body.user_email,
+            display_name=body.display_name,
+            travel_persona=body.travel_persona,
+            travel_style=body.travel_style,
+            trip_length=body.trip_length,
+            interests=body.interests,
+            home_city=body.home_city,
+            onboarded=body.onboarded or "false",
+        )
+        db.add(profile)
+    db.commit()
+    db.refresh(profile)
+    return {
+        "user_email": profile.user_email,
+        "display_name": profile.display_name,
+        "travel_persona": profile.travel_persona,
+        "travel_style": profile.travel_style,
+        "trip_length": profile.trip_length,
+        "interests": profile.interests,
+        "home_city": profile.home_city,
+        "onboarded": profile.onboarded,
+    }
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
