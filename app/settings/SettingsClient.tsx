@@ -11,7 +11,48 @@ interface SavedTrip {
   created_at: string;
 }
 
+interface UserProfile {
+  travel_persona?: string;
+  travel_style?: string;
+  trip_length?: string;
+  interests?: string;
+  home_city?: string;
+  onboarded?: string;
+}
+
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL;
+
+const PERSONA_LABELS: Record<string, string> = {
+  solo: "🧳 Solo",
+  couple: "💑 Couple",
+  family: "👨‍👩‍👧‍👦 Family",
+  friends: "🎉 Friends",
+  work: "💼 Work trip",
+};
+const STYLE_LABELS: Record<string, string> = {
+  adventure: "🏔️ Adventure",
+  relaxed: "🏖️ Relaxed",
+  cultural: "🏛️ Cultural",
+  foodie: "🍜 Foodie",
+  luxury: "✨ Luxury",
+  budget: "💰 Budget",
+};
+const LENGTH_LABELS: Record<string, string> = {
+  weekend: "🌅 Weekend (2-3 days)",
+  week: "🗓️ A week",
+  twoweeks: "📅 Two weeks",
+  month: "🌍 A month or more",
+};
+const INTEREST_LABELS: Record<string, string> = {
+  nature: "🌿 Nature",
+  history: "🏰 History",
+  food: "🍕 Food & Drink",
+  nightlife: "🎵 Nightlife",
+  sports: "⚽ Sports",
+  art: "🎨 Art & Culture",
+  beaches: "🏄 Beaches",
+  mountains: "⛰️ Mountains",
+};
 
 export default function SettingsClient({
   userEmail,
@@ -26,6 +67,10 @@ export default function SettingsClient({
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [editingPersona, setEditingPersona] = useState(false);
+  const [draftPersona, setDraftPersona] = useState<UserProfile>({});
+  const [savingPersona, setSavingPersona] = useState(false);
 
   useEffect(() => {
     fetch(`${BACKEND}/saved-trips?user_email=${encodeURIComponent(userEmail)}`)
@@ -34,6 +79,45 @@ export default function SettingsClient({
       .catch(() => setTrips([]))
       .finally(() => setLoading(false));
   }, [userEmail]);
+
+  useEffect(() => {
+    fetch(`${BACKEND}/profile?user_email=${encodeURIComponent(userEmail)}`)
+      .then((r) => r.json())
+      .then((data) => setProfile(data))
+      .catch(() => {});
+  }, [userEmail]);
+
+  function startEditPersona() {
+    setDraftPersona({
+      travel_persona: profile?.travel_persona ?? "",
+      travel_style: profile?.travel_style ?? "",
+      trip_length: profile?.trip_length ?? "",
+      interests: profile?.interests ?? "",
+      home_city: profile?.home_city ?? "",
+    });
+    setEditingPersona(true);
+  }
+
+  async function savePersona() {
+    setSavingPersona(true);
+    try {
+      const res = await fetch(`${BACKEND}/profile`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_email: userEmail, ...draftPersona, onboarded: "true" }),
+      });
+      const updated = await res.json();
+      setProfile(updated);
+      setEditingPersona(false);
+    } catch {}
+    setSavingPersona(false);
+  }
+
+  function toggleInterest(val: string) {
+    const current = draftPersona.interests ? draftPersona.interests.split(",").filter(Boolean) : [];
+    const next = current.includes(val) ? current.filter((v) => v !== val) : [...current, val];
+    setDraftPersona((d) => ({ ...d, interests: next.join(",") }));
+  }
 
   async function handleDelete(id: string) {
     setDeletingId(id);
@@ -73,6 +157,175 @@ export default function SettingsClient({
             Google account
           </span>
         </div>
+      </div>
+
+      {/* Travel Persona */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Travel Persona</h2>
+          {!editingPersona && (
+            <button
+              onClick={startEditPersona}
+              className="text-xs px-3 py-1.5 rounded-full font-semibold transition-colors"
+              style={{ background: "var(--t-primary-light)", color: "var(--t-primary)" }}
+            >
+              Edit
+            </button>
+          )}
+        </div>
+
+        {!editingPersona ? (
+          <div className="flex flex-wrap gap-2">
+            {profile?.travel_persona && (
+              <span className="text-xs px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium">
+                {PERSONA_LABELS[profile.travel_persona] ?? profile.travel_persona}
+              </span>
+            )}
+            {profile?.travel_style && (
+              <span className="text-xs px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium">
+                {STYLE_LABELS[profile.travel_style] ?? profile.travel_style}
+              </span>
+            )}
+            {profile?.trip_length && (
+              <span className="text-xs px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium">
+                {LENGTH_LABELS[profile.trip_length] ?? profile.trip_length}
+              </span>
+            )}
+            {profile?.interests && profile.interests.split(",").filter(Boolean).map((i) => (
+              <span key={i} className="text-xs px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium">
+                {INTEREST_LABELS[i] ?? i}
+              </span>
+            ))}
+            {profile?.home_city && (
+              <span className="text-xs px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium">
+                🏠 {profile.home_city}
+              </span>
+            )}
+            {!profile?.travel_persona && !profile?.travel_style && !profile?.interests && !profile?.home_city && (
+              <p className="text-sm text-gray-400 dark:text-gray-500">
+                No persona set yet.{" "}
+                <Link href="/onboarding" className="text-[var(--t-primary)] hover:underline font-medium">
+                  Set it up →
+                </Link>
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Travelling as */}
+            <div>
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Travelling as</p>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(PERSONA_LABELS).map(([val, label]) => (
+                  <button
+                    key={val}
+                    onClick={() => setDraftPersona((d) => ({ ...d, travel_persona: val }))}
+                    className="text-xs px-3 py-1.5 rounded-full border-2 font-semibold transition-all"
+                    style={{
+                      borderColor: draftPersona.travel_persona === val ? "var(--t-primary)" : "var(--accent, #e5e7eb)",
+                      background: draftPersona.travel_persona === val ? "var(--t-primary-light)" : "transparent",
+                      color: draftPersona.travel_persona === val ? "var(--t-primary)" : undefined,
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Style */}
+            <div>
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Travel style</p>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(STYLE_LABELS).map(([val, label]) => (
+                  <button
+                    key={val}
+                    onClick={() => setDraftPersona((d) => ({ ...d, travel_style: val }))}
+                    className="text-xs px-3 py-1.5 rounded-full border-2 font-semibold transition-all"
+                    style={{
+                      borderColor: draftPersona.travel_style === val ? "var(--t-primary)" : "var(--accent, #e5e7eb)",
+                      background: draftPersona.travel_style === val ? "var(--t-primary-light)" : "transparent",
+                      color: draftPersona.travel_style === val ? "var(--t-primary)" : undefined,
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Trip length */}
+            <div>
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Typical trip length</p>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(LENGTH_LABELS).map(([val, label]) => (
+                  <button
+                    key={val}
+                    onClick={() => setDraftPersona((d) => ({ ...d, trip_length: val }))}
+                    className="text-xs px-3 py-1.5 rounded-full border-2 font-semibold transition-all"
+                    style={{
+                      borderColor: draftPersona.trip_length === val ? "var(--t-primary)" : "var(--accent, #e5e7eb)",
+                      background: draftPersona.trip_length === val ? "var(--t-primary-light)" : "transparent",
+                      color: draftPersona.trip_length === val ? "var(--t-primary)" : undefined,
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Interests */}
+            <div>
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Interests</p>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(INTEREST_LABELS).map(([val, label]) => {
+                  const selected = (draftPersona.interests ?? "").split(",").includes(val);
+                  return (
+                    <button
+                      key={val}
+                      onClick={() => toggleInterest(val)}
+                      className="text-xs px-3 py-1.5 rounded-full border-2 font-semibold transition-all"
+                      style={{
+                        borderColor: selected ? "var(--t-primary)" : "var(--accent, #e5e7eb)",
+                        background: selected ? "var(--t-primary-light)" : "transparent",
+                        color: selected ? "var(--t-primary)" : undefined,
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            {/* Home city */}
+            <div>
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Home city</p>
+              <input
+                type="text"
+                value={draftPersona.home_city ?? ""}
+                onChange={(e) => setDraftPersona((d) => ({ ...d, home_city: e.target.value }))}
+                placeholder="e.g. San Francisco, CA"
+                className="w-full max-w-xs border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-900 outline-none focus:ring-2"
+                style={{ "--tw-ring-color": "var(--t-primary)" } as React.CSSProperties}
+              />
+            </div>
+            {/* Actions */}
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={savePersona}
+                disabled={savingPersona}
+                className="text-sm px-4 py-2 rounded-full font-bold text-white transition-opacity disabled:opacity-50"
+                style={{ background: "var(--t-primary)" }}
+              >
+                {savingPersona ? "Saving…" : "Save"}
+              </button>
+              <button
+                onClick={() => setEditingPersona(false)}
+                className="text-sm px-4 py-2 rounded-full font-medium text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Saved trips */}

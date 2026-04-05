@@ -12,7 +12,7 @@ export default function TopBar({ userEmail }: { userEmail: string }) {
       <span className="text-sm font-bold text-[var(--t-primary)]">🚗 RoadAI</span>
 
       <div className="flex items-center gap-4">
-        <ThemeSwitcher />
+        <ThemeSwitcher variant="light" />
         <span className="text-sm text-gray-500 dark:text-gray-400 hidden sm:block">{userEmail}</span>
         <button
           onClick={() => signOut({ callbackUrl: "/signin" })}

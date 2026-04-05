@@ -50,8 +50,8 @@ export default function SignInPage() {
     <div className="min-h-screen flex items-center justify-center bg-[#f5f5f5] px-4 py-12">
 
       {/* Season switcher top-right */}
-      <div className="fixed top-4 right-4 z-50 bg-white rounded-full px-3 py-2 shadow-md">
-        <ThemeSwitcher />
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeSwitcher variant="light" />
       </div>
 
       {/* Card */}
