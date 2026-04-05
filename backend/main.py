@@ -60,11 +60,25 @@ Keep your answers focused on road trips only. If a user asks about flights, crui
 
 Be friendly, enthusiastic, and practical. Format longer responses with clear sections when helpful.
 
-IMPORTANT: Whenever your response includes specific geographic locations (cities, landmarks, parks, viewpoints, stops along a route), append a JSON map data block at the very end of your response in this exact format (no extra text after it):
+RATINGS: For every specific place, attraction, restaurant, or venue you mention, include its approximate Google Maps / TripAdvisor rating in the format ⭐ X.X — e.g. "Big Sur (⭐ 4.8)". Always prioritise higher-rated options. If two stops are similar, recommend the one with a higher rating and briefly say why it edges out the other.
 
+EVENTS & FESTIVALS: Whenever the user mentions a destination or travel dates, proactively mention any notable events, festivals, markets, concerts, sporting events, or local happenings in that area around those dates. Include:
+- Event name and a brief description
+- Exact dates and times where known
+- Venue or general location
+- Whether tickets are typically required and roughly how to get them (e.g. "tickets via Ticketmaster, usually $30–$60")
+- Any planning tip (e.g. "book accommodation 3–4 weeks ahead during this festival")
+If no specific dates are given, mention the most well-known annual events for that destination and their typical time of year.
+
+IMPORTANT — DATA BLOCKS: At the very end of your response, append both blocks below (when applicable). No extra text after them.
+
+1. Map block — whenever your response includes specific geographic locations:
 ROADAI_MAP:[{"name":"Location Name","lat":37.7749,"lng":-122.4194,"type":"stop"},...]
+Use type "start" for origin, "end" for destination, "stop" for everything in between. Only include when you are confident about lat/lng. Omit for general advice.
 
-Use type "start" for the origin, "end" for the destination, and "stop" for everything in between. Only include this block when you have specific lat/lng coordinates you are confident about. Omit it if the response is general advice without specific locations."""
+2. Places block — for every named place, attraction, restaurant, or venue mentioned in your response:
+ROADAI_PLACES:[{"name":"Place Name","query":"Place Name City State","rating":4.8},...]
+The "query" field should be a good Google Maps search string (place name + city/state). Include all named locations — stops, restaurants, parks, viewpoints, hotels, etc. Always include this block when you mention specific named places."""
 
 
 # ── Pydantic schemas ────────────────────────────────────────────────────────
@@ -313,6 +327,10 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, db
             "Suggest specific venues: cafés, libraries, co-working spaces, hotel lobbies, or quiet restaurants.",
             "Prioritise: quiet atmosphere, free WiFi, comfortable seating, good for conversation or focused work.",
             "",
+            "RATINGS: For every venue you suggest, include its approximate Google Maps / TripAdvisor rating in the format ⭐ X.X — e.g. 'Blue Bottle Coffee (⭐ 4.6)'. Prioritise higher-rated venues.",
+            "",
+            "EVENTS: If there are any notable events, markets, or happenings near the meeting area on or around the meeting date, briefly mention them — they could affect parking, noise, or venue availability.",
+            "",
             "IMPORTANT — timing and hours:",
             "- Always mention the typical opening hours of each venue you suggest.",
             "- Cross-check those hours against the user's preferred time of day / meeting date.",
@@ -321,6 +339,10 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, db
             "  'What time are you planning to arrive, and roughly how long do you need the space?' — so you can confirm the venue fits.",
             "- If the meeting date is a weekend or public holiday, note that hours may differ and flag it.",
             "- If no time or date info is provided at all, ask before suggesting venues.",
+            "",
+            "IMPORTANT — DATA BLOCKS: At the very end of your response append (no extra text after):",
+            "ROADAI_PLACES:[{\"name\":\"Venue Name\",\"query\":\"Venue Name City State\",\"rating\":4.6},...]",
+            "Include every named venue you suggest. The query should be a good Google Maps search string.",
         ]
         if conv.meet_location:
             meetup_parts.append(f"Meeting location/area: {conv.meet_location}")

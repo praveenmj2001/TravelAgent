@@ -26,7 +26,26 @@ function parseWaypoints(text: string): MapWaypoint[] {
 }
 
 function stripMapBlock(text: string): string {
-  return text.replace(/\nROADAI_MAP:\[[\s\S]*?\](\s*)$/m, "").trimEnd();
+  return text
+    .replace(/\n?ROADAI_MAP:\[[\s\S]*?\](\s*)$/m, "")
+    .replace(/\n?ROADAI_PLACES:\[[\s\S]*?\](\s*)$/m, "")
+    .trimEnd();
+}
+
+interface PlaceLink {
+  name: string;
+  query: string;
+  rating?: number;
+}
+
+function parsePlaces(text: string): PlaceLink[] {
+  const match = text.match(/ROADAI_PLACES:(\[[\s\S]*?\])(?:\s*$)/m);
+  if (!match) return [];
+  try {
+    return JSON.parse(match[1]) as PlaceLink[];
+  } catch {
+    return [];
+  }
 }
 
 export default function ChatClient({
@@ -217,9 +236,15 @@ export default function ChatClient({
     }
   }
 
-  function handlePersonaComplete(completed: TripPersona) {
+  function handlePersonaComplete(completed: TripPersona, autoMessage?: string) {
     setPersona(completed);
     setShowPersonaSheet(false);
+    if (autoMessage && convId) {
+      const userMsg: Message = { role: "user", content: autoMessage };
+      setMessages((prev) => [...prev, userMsg]);
+      setLoading(true);
+      streamMessage(autoMessage, convId);
+    }
   }
 
   function handlePersonaSkip() {
@@ -385,6 +410,33 @@ export default function ChatClient({
                       </ReactMarkdown>
                       {parseWaypoints(msg.content).length > 0 && (
                         <MapView waypoints={parseWaypoints(msg.content)} />
+                      )}
+                      {parsePlaces(msg.content).length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {parsePlaces(msg.content).map((place) => (
+                            <a
+                              key={place.name}
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.query)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all hover:shadow-md hover:-translate-y-0.5"
+                              style={{
+                                borderColor: "var(--t-primary)",
+                                color: "var(--t-primary)",
+                                background: "var(--t-primary-light, #f0fdf4)",
+                              }}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                              {place.name}
+                              {place.rating && (
+                                <span className="opacity-70">⭐ {place.rating}</span>
+                              )}
+                            </a>
+                          ))}
+                        </div>
                       )}
                     </>
                   ) : (

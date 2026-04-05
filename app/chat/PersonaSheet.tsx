@@ -25,7 +25,7 @@ const TRIP_STEPS = [
 interface Props {
   userEmail: string;
   conversationId: string;
-  onComplete: (persona: TripPersona) => void;
+  onComplete: (persona: TripPersona, autoMessage?: string) => void;
   onSkip: () => void;
 }
 
@@ -80,6 +80,25 @@ export default function PersonaSheet({ userEmail, conversationId, onComplete, on
     setPersona((p) => ({ ...p, [key]: next.join(",") }));
   }
 
+  function buildMeetupAutoMessage(p: TripPersona): string {
+    const location = p.meet_location?.trim();
+    const time = p.meet_time?.trim();
+    const date = p.meet_date?.trim();
+
+    let datePhrase = "";
+    if (date === "today" || !date) {
+      datePhrase = "today";
+    } else {
+      const d = new Date(date + "T00:00:00");
+      datePhrase = "on " + d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+    }
+
+    const timePhrase = time ? ` in the ${time}` : "";
+    const locationPhrase = location ? ` near ${location}` : "";
+
+    return `I'm planning a meetup${locationPhrase}${timePhrase} ${datePhrase}. Can you suggest some good spots — preferably somewhere quiet with decent WiFi and comfortable seating?`;
+  }
+
   async function saveAndFinish(finalPersona: TripPersona) {
     setSaving(true);
     try {
@@ -89,9 +108,11 @@ export default function PersonaSheet({ userEmail, conversationId, onComplete, on
         body: JSON.stringify(finalPersona),
       });
       window.dispatchEvent(new Event("persona-updated"));
-      onComplete(finalPersona);
+      const autoMessage = finalPersona.travelling_as === "meetup" ? buildMeetupAutoMessage(finalPersona) : undefined;
+      onComplete(finalPersona, autoMessage);
     } catch {
-      onComplete(finalPersona);
+      const autoMessage = finalPersona.travelling_as === "meetup" ? buildMeetupAutoMessage(finalPersona) : undefined;
+      onComplete(finalPersona, autoMessage);
     }
     setSaving(false);
   }

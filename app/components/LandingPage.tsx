@@ -19,11 +19,48 @@ const FEATURES = [
   {
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+      </svg>
+    ),
+    title: "Your Travel Persona",
+    desc: "Tell RoadAI who you're travelling with, your style, length, interests, and diet — saved per trip so every suggestion fits you.",
+  },
+  {
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    ),
+    title: "Meetup Finder",
+    desc: "Planning a meetup? RoadAI finds quiet, WiFi-friendly venues — with opening hours awareness and timing cross-checks built in.",
+  },
+  {
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 13l4.553 2.276A1 1 0 0021 21.382V10.618a1 1 0 00-.553-.894L15 7m0 13V7m0 0L9 4" />
+        <circle cx="12" cy="12" r="0" />
+      </svg>
+    ),
+    title: "Live Route Map",
+    desc: "An interactive map auto-appears as RoadAI mentions stops — colour-coded markers, route polyline, and fullscreen mode.",
+  },
+  {
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
       </svg>
     ),
     title: "Just Chat",
-    desc: "No forms, no spreadsheets, no 47 open tabs. Just tell the AI your vibe — it handles the rest.",
+    desc: "No forms, no spreadsheets, no 47 open tabs. Responses stream in real-time — just talk and your itinerary builds itself.",
+  },
+  {
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+      </svg>
+    ),
+    title: "14 Themes",
+    desc: "Switch between Seasons, Moods, and Cultural themes — Spring, Viking, K-Pop, Indian, and more — instantly with one click.",
   },
   {
     icon: (
@@ -31,8 +68,8 @@ const FEATURES = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
       </svg>
     ),
-    title: "Save & Revisit",
-    desc: "Every conversation is saved with an auto-generated title. Pick up any trip where you left off, anytime.",
+    title: "Save & Print",
+    desc: "Bookmark any AI response to your profile. Print the full conversation as a clean, formatted itinerary — ready to take offline.",
   },
   {
     icon: (
@@ -47,8 +84,9 @@ const FEATURES = [
 
 const STEPS = [
   { number: "01", title: "Sign in with Google", desc: "One click, no passwords. You're in." },
-  { number: "02", title: "Tell RoadAI your dream trip", desc: "Destination, dates, vibe — or just wing it. RoadAI figures it out." },
-  { number: "03", title: "Hit the road", desc: "Your personalized route is ready. Save it, tweak it, and go." },
+  { number: "02", title: "Set your trip persona", desc: "Who's coming? What's your style? Solo, couple, family, friends — or Meetup mode for venue hunting." },
+  { number: "03", title: "Chat & watch it build", desc: "Describe your dream trip. RoadAI streams a full itinerary while a live map plots every stop." },
+  { number: "04", title: "Hit the road", desc: "Save, tweak, or print your plan. Your persona stays with the trip — pick up exactly where you left off." },
 ];
 
 export default function LandingPage() {
@@ -138,17 +176,22 @@ export default function LandingPage() {
 
         {/* Mock chat bubble preview */}
         <div className="mt-16 bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-5 max-w-lg w-full text-left shadow-2xl">
+          <div className="flex items-center gap-2 mb-3 text-white/50 text-xs font-medium">
+            <span className="w-2 h-2 rounded-full bg-green-400" />
+            Persona: 👨‍👩‍👧‍👦 Family · Scenic · 3–5 days · National Parks
+          </div>
           <div className="flex items-start gap-3 mb-3">
             <div className="w-7 h-7 rounded-full bg-indigo-400 flex items-center justify-center text-xs shrink-0">🧑</div>
             <div className="bg-white/20 text-white text-sm px-4 py-2.5 rounded-2xl rounded-tl-sm">
-              Plan a 3-day road trip from San Francisco to LA with scenic stops
+              Plan a 4-day road trip from Denver to Moab with the family
             </div>
           </div>
           <div className="flex items-start gap-3">
-            <div className="w-7 h-7 rounded-full bg-purple-500 flex items-center justify-center text-xs shrink-0">🤖</div>
+            <div className="w-7 h-7 rounded-full bg-purple-500 flex items-center justify-center text-xs shrink-0">🗺️</div>
             <div className="bg-[var(--t-bubble-user)]/70 text-white/90 text-sm px-4 py-2.5 rounded-2xl rounded-tl-sm">
-              <span className="font-semibold">🚗 SF → LA via Highway 1</span><br />
-              Day 1: SF → Santa Cruz → Big Sur (4.5 hrs driving)…
+              <span className="font-semibold">🚗 Denver → Moab via US-285</span><br />
+              Day 1: Denver → Buena Vista (2.5 hrs) — rafting &amp; Cottonwood Hot Springs…<br />
+              <span className="text-white/60 text-xs">📍 Map updating with 11 stops…</span>
             </div>
           </div>
         </div>
@@ -159,9 +202,9 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900">Everything your road trip needs</h2>
-            <p className="mt-4 text-gray-500 text-lg">Built for drivers who love the journey as much as the destination.</p>
+            <p className="mt-4 text-gray-500 text-lg">Road trips, meetups, and everything in between — fully personalized, every time.</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 xl:grid-cols-4">
             {FEATURES.map((f) => (
               <div key={f.title} className="p-6 rounded-2xl border border-gray-100 hover:border-[var(--t-ring)] hover:shadow-lg transition-all group">
                 <div className="w-12 h-12 rounded-xl bg-[var(--t-primary-light)] text-[var(--t-primary)] flex items-center justify-center mb-4 transition-colors">
@@ -179,10 +222,10 @@ export default function LandingPage() {
       <section id="how-it-works" className="py-24 px-6 bg-gray-50">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900">From idea to itinerary in minutes</h2>
-            <p className="mt-4 text-gray-500 text-lg">No accounts to configure. No preferences to fill out.</p>
+            <h2 className="text-4xl font-bold text-gray-900">From idea to itinerary in 4 steps</h2>
+            <p className="mt-4 text-gray-500 text-lg">Persona-first. Map-powered. Ready in minutes.</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {STEPS.map((s) => (
               <div key={s.number} className="text-center">
                 <div className="text-5xl font-black text-[var(--t-primary-light)] mb-4">{s.number}</div>
