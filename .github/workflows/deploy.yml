@@ -28,19 +28,5 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-  # ── Deploy Backend to Railway ─────────────────────────────────────────────
-  deploy-backend:
-    name: Deploy Backend → Railway
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli@latest
-
-      - name: Deploy to Railway
-        run: railway up --service ${{ secrets.RAILWAY_SERVICE_NAME }} --detach
-        working-directory: backend
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+  # ── Backend deploys via Railway native GitHub integration ─────────────────
+  # Railway → service → Settings → Source → GitHub repo, branch: main, root: backend/
