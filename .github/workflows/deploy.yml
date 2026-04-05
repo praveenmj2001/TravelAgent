@@ -1,4 +1,4 @@
-name: Deploy
+name: Deploy on merge to main
 
 on:
   push:
@@ -6,37 +6,48 @@ on:
       - main
 
 jobs:
+  # ── Deploy Frontend to Vercel ─────────────────────────────────────────────
   deploy-frontend:
-    name: Deploy Frontend to Vercel
+    name: Deploy Frontend → Vercel
     runs-on: ubuntu-latest
-    if: |
-      contains(github.event.head_commit.modified, 'app/') ||
-      contains(github.event.head_commit.added, 'app/') ||
-      contains(toJson(github.event.head_commit.modified), 'app/') ||
-      true
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Install Vercel CLI
-        run: npm install -g vercel
+        run: npm install -g vercel@latest
 
-      - name: Deploy to Vercel
-        run: vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
+      - name: Build
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy to production
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  # ── Deploy Backend to Railway ─────────────────────────────────────────────
   deploy-backend:
-    name: Deploy Backend to Railway
+    name: Deploy Backend → Railway
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Install Railway CLI
-        run: npm install -g @railway/cli
+        run: npm install -g @railway/cli@latest
 
       - name: Deploy to Railway
-        run: railway up --service ${{ secrets.RAILWAY_SERVICE_ID }} --detach
+        run: railway up --service ${{ secrets.RAILWAY_SERVICE_NAME }} --detach
         working-directory: backend
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
