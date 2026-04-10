@@ -15,20 +15,32 @@ interface Message {
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL;
 
-function parseWaypoints(text: string): MapWaypoint[] {
-  const match = text.match(/ROADAI_MAP:(\[[\s\S]*?\])(?:\s*$)/m);
-  if (!match) return [];
-  try {
-    return JSON.parse(match[1]) as MapWaypoint[];
-  } catch {
-    return [];
+function extractJsonArray(text: string, prefix: string): string | null {
+  const idx = text.indexOf(prefix + ":");
+  if (idx === -1) return null;
+  const start = text.indexOf("[", idx);
+  if (start === -1) return null;
+  let depth = 0;
+  for (let i = start; i < text.length; i++) {
+    if (text[i] === "[") depth++;
+    else if (text[i] === "]") {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
   }
+  return null;
+}
+
+function parseWaypoints(text: string): MapWaypoint[] {
+  const json = extractJsonArray(text, "ROADAI_MAP");
+  if (!json) return [];
+  try { return JSON.parse(json) as MapWaypoint[]; } catch { return []; }
 }
 
 function stripMapBlock(text: string): string {
   return text
-    .replace(/\n?ROADAI_MAP:\[[\s\S]*?\](\s*)$/m, "")
-    .replace(/\n?ROADAI_PLACES:\[[\s\S]*?\](\s*)$/m, "")
+    .replace(/\n?ROADAI_MAP:[\s\S]*$/, "")
+    .replace(/\n?ROADAI_PLACES:[\s\S]*$/, "")
     .trimEnd();
 }
 
@@ -39,13 +51,9 @@ interface PlaceLink {
 }
 
 function parsePlaces(text: string): PlaceLink[] {
-  const match = text.match(/ROADAI_PLACES:(\[[\s\S]*?\])(?:\s*$)/m);
-  if (!match) return [];
-  try {
-    return JSON.parse(match[1]) as PlaceLink[];
-  } catch {
-    return [];
-  }
+  const json = extractJsonArray(text, "ROADAI_PLACES");
+  if (!json) return [];
+  try { return JSON.parse(json) as PlaceLink[]; } catch { return []; }
 }
 
 export default function ChatClient({
@@ -66,6 +74,10 @@ export default function ChatClient({
   const [savingIdx, setSavingIdx] = useState<number | null>(null);
   const [exportCopied, setExportCopied] = useState(false);
   const [userLocation, setUserLocation] = useState<string | null>(null);
+
+  // DEV: system prompt debug panel
+  const [systemPrompt, setSystemPrompt] = useState<string>("");
+  const [showPromptPanel, setShowPromptPanel] = useState(false);
 
   // Persona state
   const [persona, setPersona] = useState<TripPersona | null>(null);
@@ -165,6 +177,20 @@ export default function ChatClient({
     setActiveWaypoints([]);
   }, [messages]);
 
+  // Listen for "Try Now" from sidebar persona section
+  useEffect(() => {
+    function onTryNow() {
+      if (!convId || loading) return;
+      const text = "Based on my updated travel preferences, can you refine your suggestions?";
+      const userMsg: Message = { role: "user", content: text };
+      setMessages((prev) => [...prev, userMsg]);
+      setLoading(true);
+      streamMessage(text, convId);
+    }
+    window.addEventListener("persona-try-now", onTryNow);
+    return () => window.removeEventListener("persona-try-now", onTryNow);
+  }, [convId, loading]);
+
   async function sendMessage() {
     const text = input.trim();
     if (!text || loading) return;
@@ -216,7 +242,9 @@ export default function ChatClient({
           if (!raw) continue;
           try {
             const event = JSON.parse(raw);
-            if (event.type === "chunk") {
+            if (event.type === "system_prompt") {
+              setSystemPrompt(event.text);
+            } else if (event.type === "chunk") {
               setMessages((prev) => {
                 const updated = [...prev];
                 updated[updated.length - 1] = { role: "assistant", content: updated[updated.length - 1].content + event.text };
@@ -320,7 +348,8 @@ export default function ChatClient({
   }
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden h-[calc(100vh-56px)] relative">
+    <div className="flex flex-1 overflow-hidden h-[calc(100vh-56px)]">
+    <div className="flex flex-col flex-1 overflow-hidden relative">
         {/* Header */}
         <div
           className="border-b border-black/10 dark:bg-gray-900 dark:border-gray-700 px-6 py-3 flex items-center justify-between shrink-0"
@@ -361,6 +390,21 @@ export default function ChatClient({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
               </svg>
               Print
+            </button>
+            {/* DEV: system prompt debug toggle */}
+            <button
+              onClick={() => setShowPromptPanel((v) => !v)}
+              title="DEV: View system prompt"
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-medium transition-colors border ${
+                showPromptPanel
+                  ? "bg-amber-100 text-amber-700 border-amber-300"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700"
+              }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+              </svg>
+              Prompt
             </button>
           </div>
         </div>
@@ -516,6 +560,38 @@ export default function ChatClient({
             onSkip={handlePersonaSkip}
           />
         )}
+    </div>
+
+    {/* DEV: System Prompt debug panel */}
+    {showPromptPanel && (
+      <div className="w-96 shrink-0 flex flex-col border-l border-amber-200 bg-amber-50 dark:bg-gray-950 dark:border-amber-900 overflow-hidden">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-amber-200 dark:border-amber-900 shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wide">DEV · System Prompt</span>
+            {systemPrompt && (
+              <span className="text-[10px] text-amber-500">{systemPrompt.length} chars</span>
+            )}
+          </div>
+          <button
+            onClick={() => {
+              if (systemPrompt) { navigator.clipboard.writeText(systemPrompt); }
+            }}
+            className="text-[10px] text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-700 transition-colors"
+          >
+            Copy
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-3">
+          {systemPrompt ? (
+            <pre className="text-[11px] font-mono text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+              {systemPrompt}
+            </pre>
+          ) : (
+            <p className="text-xs text-amber-400 italic mt-2">Send a message to capture the system prompt.</p>
+          )}
+        </div>
+      </div>
+    )}
     </div>
   );
 }

@@ -390,6 +390,9 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, db
             client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
             full_text = ""
 
+            # DEV: emit the full system prompt so the frontend debug panel can display it
+            yield f"data: {json.dumps({'type': 'system_prompt', 'text': system_prompt})}\n\n"
+
             with client.messages.stream(
                 model="claude-sonnet-4-6",
                 max_tokens=2048,

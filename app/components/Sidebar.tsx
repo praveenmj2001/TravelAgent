@@ -25,6 +25,7 @@ export default function Sidebar({ userEmail }: { userEmail: string }) {
   const [dark, setDark] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [persona, setPersona] = useState<TripPersona | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(true);
   const [personaOpen, setPersonaOpen] = useState(true);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
@@ -191,31 +192,49 @@ export default function Sidebar({ userEmail }: { userEmail: string }) {
 
           {/* Conversation history */}
           {!collapsed && conversations.length > 0 && (
-            <>
-              <p className="text-xs text-gray-400 dark:text-gray-500 px-3 pt-3 pb-1 uppercase tracking-wide">History</p>
-              {conversations.map((c) => (
-                <Link
-                  key={c.id}
-                  href={`/chat?id=${c.id}`}
-                  className={`group flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
-                    activeId === c.id
-                      ? "bg-[var(--t-sidebar-active)] text-[var(--t-sidebar-text)]"
-                      : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-                  }`}
+            <div className="mt-1">
+              <button
+                onClick={() => setHistoryOpen((v) => !v)}
+                className="w-full flex items-center justify-between px-3 pt-3 pb-1 group"
+              >
+                <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide group-hover:text-[var(--t-primary)] transition-colors">
+                  History
+                </p>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className={`w-3 h-3 text-gray-400 transition-transform ${historyOpen ? "rotate-180" : ""}`}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor"
                 >
-                  <span className="truncate">{c.title}</span>
-                  <button
-                    onClick={(e) => handleDelete(e, c.id)}
-                    className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-500 shrink-0 ml-1"
-                    title="Delete"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </Link>
-              ))}
-            </>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {historyOpen && (
+                <div className="overflow-y-auto flex flex-col gap-0.5" style={{ maxHeight: "calc(7 * 2.5rem)" }}>
+                  {conversations.map((c) => (
+                    <Link
+                      key={c.id}
+                      href={`/chat?id=${c.id}`}
+                      className={`group flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors shrink-0 ${
+                        activeId === c.id
+                          ? "bg-[var(--t-sidebar-active)] text-[var(--t-sidebar-text)]"
+                          : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                      }`}
+                    >
+                      <span className="truncate">{c.title}</span>
+                      <button
+                        onClick={(e) => handleDelete(e, c.id)}
+                        className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-500 shrink-0 ml-1"
+                        title="Delete"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
 
           {/* ── Persona section ─────────────────────────────────── */}
@@ -388,6 +407,20 @@ export default function Sidebar({ userEmail }: { userEmail: string }) {
                         );
                       })
                   }
+                  {persona && (
+                    <div className="px-2 pt-2 pb-1">
+                      <button
+                        onClick={() => window.dispatchEvent(new Event("persona-try-now"))}
+                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 active:scale-95"
+                        style={{ background: "var(--t-primary)" }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Try Now
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
