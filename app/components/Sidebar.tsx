@@ -27,6 +27,8 @@ export default function Sidebar({ userEmail }: { userEmail: string }) {
   const [persona, setPersona] = useState<TripPersona | null>(null);
   const [historyOpen, setHistoryOpen] = useState(true);
   const [personaOpen, setPersonaOpen] = useState(true);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
 
@@ -96,6 +98,26 @@ export default function Sidebar({ userEmail }: { userEmail: string }) {
     await fetch(`${BACKEND}/conversations/${id}`, { method: "DELETE" });
     fetchConversations();
     if (activeId === id) router.push("/chat");
+  }
+
+  function startRename(e: React.MouseEvent, id: string, currentTitle: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    setRenamingId(id);
+    setRenameValue(currentTitle);
+  }
+
+  async function submitRename(id: string) {
+    const trimmed = renameValue.trim();
+    if (trimmed) {
+      await fetch(`${BACKEND}/conversations/${id}/title`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: trimmed }),
+      });
+      fetchConversations();
+    }
+    setRenamingId(null);
   }
 
   function getValues(key: keyof TripPersona): string[] {
@@ -211,26 +233,54 @@ export default function Sidebar({ userEmail }: { userEmail: string }) {
               {historyOpen && (
                 <div className="overflow-y-auto flex flex-col gap-0.5" style={{ maxHeight: "calc(7 * 2.5rem)" }}>
                   {conversations.map((c) => (
-                    <Link
-                      key={c.id}
-                      href={`/chat?id=${c.id}`}
-                      className={`group flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors shrink-0 ${
-                        activeId === c.id
-                          ? "bg-[var(--t-sidebar-active)] text-[var(--t-sidebar-text)]"
-                          : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-                      }`}
-                    >
-                      <span className="truncate">{c.title}</span>
-                      <button
-                        onClick={(e) => handleDelete(e, c.id)}
-                        className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-500 shrink-0 ml-1"
-                        title="Delete"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </Link>
+                    <div key={c.id} className="shrink-0">
+                      {renamingId === c.id ? (
+                        <div className="flex items-center gap-1 px-2 py-1" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            autoFocus
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") submitRename(c.id);
+                              if (e.key === "Escape") setRenamingId(null);
+                            }}
+                            onBlur={() => submitRename(c.id)}
+                            className="flex-1 text-xs px-2 py-1 rounded-lg border border-[var(--t-primary)] outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                          />
+                        </div>
+                      ) : (
+                        <Link
+                          href={`/chat?id=${c.id}`}
+                          className={`group flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+                            activeId === c.id
+                              ? "bg-[var(--t-sidebar-active)] text-[var(--t-sidebar-text)]"
+                              : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                          }`}
+                        >
+                          <span className="truncate flex-1">{c.title}</span>
+                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 shrink-0 ml-1">
+                            <button
+                              onClick={(e) => startRename(e, c.id, c.title)}
+                              className="p-0.5 hover:text-[var(--t-primary)] transition-colors"
+                              title="Rename"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={(e) => handleDelete(e, c.id)}
+                              className="p-0.5 hover:text-red-500 transition-colors"
+                              title="Delete"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        </Link>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}

@@ -428,6 +428,19 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, db
     return StreamingResponse(generate(), media_type="text/event-stream")
 
 
+@app.patch("/conversations/{conversation_id}/title")
+def rename_conversation(conversation_id: str, body: dict, db: Session = Depends(get_db)):
+    conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    title = (body.get("title") or "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="Title cannot be empty")
+    conv.title = title
+    db.commit()
+    return {"id": conv.id, "title": conv.title}
+
+
 @app.delete("/conversations/{conversation_id}")
 def delete_conversation(conversation_id: str, db: Session = Depends(get_db)):
     conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
