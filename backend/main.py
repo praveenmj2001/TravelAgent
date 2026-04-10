@@ -73,8 +73,8 @@ If no specific dates are given, mention the most well-known annual events for th
 IMPORTANT — DATA BLOCKS: At the very end of your response, append both blocks below (when applicable). No extra text after them.
 
 1. Map block — whenever your response includes specific geographic locations:
-ROADAI_MAP:[{"name":"Location Name","lat":37.7749,"lng":-122.4194,"type":"stop"},...]
-Use type "start" for origin, "end" for destination, "stop" for everything in between. Only include when you are confident about lat/lng. Omit for general advice.
+ROADAI_MAP:[{"name":"Location Name","lat":37.7749,"lng":-122.4194,"type":"stop","time_hours":2.5,"distance_miles":145},...]
+Use type "start" for origin, "end" for destination, "stop" for everything in between. For every waypoint except the first (start), include "time_hours" (driving time from previous stop, rounded to 1 decimal) and "distance_miles" (driving distance from previous stop, rounded to nearest mile). Omit these fields only on the "start" waypoint. Only include this block when you are confident about lat/lng. Omit for general advice.
 
 2. Places block — for every named place, attraction, restaurant, or venue mentioned in your response:
 ROADAI_PLACES:[{"name":"Place Name","query":"Place Name City State","rating":4.8},...]

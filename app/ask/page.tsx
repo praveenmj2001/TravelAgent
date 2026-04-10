@@ -1,22 +1,17 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import AppLayout from "@/app/components/AppLayout";
-import ChatClient from "./ChatClient";
+import AskClient from "./AskClient";
 
-export default async function ChatPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ id?: string; prompt?: string }>;
-}) {
+export default async function AskPage() {
   const session = await auth();
   if (!session) redirect("/signin");
 
-  const { id, prompt } = await searchParams;
   const userEmail = session.user?.email ?? "";
 
   return (
     <AppLayout userEmail={userEmail}>
-      <ChatClient userEmail={userEmail} conversationId={id} autoPrompt={prompt} />
+      <AskClient userEmail={userEmail} />
     </AppLayout>
   );
 }

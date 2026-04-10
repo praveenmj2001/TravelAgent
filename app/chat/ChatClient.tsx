@@ -59,9 +59,11 @@ function parsePlaces(text: string): PlaceLink[] {
 export default function ChatClient({
   userEmail,
   conversationId: initialConvId,
+  autoPrompt,
 }: {
   userEmail: string;
   conversationId?: string;
+  autoPrompt?: string;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -96,6 +98,7 @@ export default function ChatClient({
       }]);
       setTitle("New Conversation");
       setPersona(null);
+      if (autoPrompt) setInput(autoPrompt);
       // Eagerly create a conversation and show persona sheet immediately
       fetch(`${BACKEND}/conversations`, {
         method: "POST",
@@ -106,7 +109,7 @@ export default function ChatClient({
         .then((data) => {
           setConvId(data.id);
           justCreatedRef.current = true;
-          router.replace(`/chat?id=${data.id}`);
+          router.replace(`/chat?id=${data.id}${autoPrompt ? `&prompt=${encodeURIComponent(autoPrompt)}` : ""}`);
           setShowPersonaSheet(true);
         })
         .catch(() => {});
@@ -131,6 +134,8 @@ export default function ChatClient({
         const hasPersona = p && (p.travelling_as || p.travel_style || p.trip_length || p.interests || p.dietary);
         setPersona(hasPersona ? p : null);
         setShowPersonaSheet(false);
+        // Pre-fill input if coming from /ask page
+        if (autoPrompt) setInput(autoPrompt);
       })
       .catch(() => {});
   }, [initialConvId]);
