@@ -6,15 +6,43 @@ export interface MapWaypoint {
   name: string;
   lat: number;
   lng: number;
-  type: "start" | "end" | "stop";
-  time_hours?: number;
-  distance_miles?: number;
+  // legacy support
+  type?: "start" | "end" | "stop";
+  // new multi-modal fields
+  role?: string;
+  mode?: "road" | "rail" | "ferry" | "air" | null;
+  time_hours?: number | null;
+  distance_miles?: number | null;
 }
 
-const TYPE_COLORS: Record<string, string> = {
-  start: "#22c55e",
-  end:   "#ef4444",
-  stop:  "#6366f1",
+const ROLE_COLORS: Record<string, string> = {
+  origin:     "#22c55e",
+  destination:"#ef4444",
+  stop:       "#6366f1",
+  start:      "#22c55e",
+  end:        "#ef4444",
+  hotel:      "#f59e0b",
+  airport:    "#0ea5e9",
+  station:    "#8b5cf6",
+  port:       "#06b6d4",
+  activity:   "#6366f1",
+  restaurant: "#f97316",
+  viewpoint:  "#ec4899",
+  rest_area:  "#94a3b8",
+};
+
+const MODE_COLORS: Record<string, string> = {
+  road:  "#6366f1",
+  rail:  "#8b5cf6",
+  ferry: "#06b6d4",
+  air:   "#0ea5e9",
+};
+
+const MODE_ICONS: Record<string, string> = {
+  road:  "🚗",
+  rail:  "🚂",
+  ferry: "⛴️",
+  air:   "✈️",
 };
 
 export default function MapView({ waypoints }: { waypoints: MapWaypoint[] }) {
@@ -56,19 +84,24 @@ export default function MapView({ waypoints }: { waypoints: MapWaypoint[] }) {
       }).addTo(map);
 
       const bounds: [number, number][] = [];
-      waypoints.forEach((wp, i) => {
-        const color = TYPE_COLORS[wp.type] ?? "#6366f1";
 
-        // Stop number label for stops (not start/end)
-        const labelHtml = wp.type === "stop"
-          ? `<div style="width:22px;height:22px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;">${i}</div>`
-          : `<div style="width:16px;height:16px;border-radius:50%;background:${color};border:2.5px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4);"></div>`;
+      waypoints.forEach((wp, i) => {
+        const roleKey = wp.role ?? wp.type ?? "stop";
+        const color = ROLE_COLORS[roleKey] ?? "#6366f1";
+        const isTerminal = roleKey === "origin" || roleKey === "start" || roleKey === "destination" || roleKey === "end";
+
+        const labelHtml = isTerminal
+          ? `<div style="width:16px;height:16px;border-radius:50%;background:${color};border:2.5px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4);"></div>`
+          : `<div style="width:22px;height:22px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;">${i}</div>`;
 
         const icon = L.divIcon({ className: "", html: labelHtml, iconSize: [22, 22], iconAnchor: [11, 11] });
 
-        let popupContent = `<b style="font-size:12px">${wp.name}</b><br/><span style="color:${color};font-size:10px;text-transform:capitalize">${wp.type}</span>`;
-        if (wp.time_hours != null && wp.distance_miles != null) {
-          popupContent += `<br/><span style="font-size:11px;color:#555">🕐 ${wp.time_hours}h &nbsp;📍 ${wp.distance_miles} mi from prev stop</span>`;
+        let popupContent = `<b style="font-size:12px">${wp.name}</b><br/><span style="color:${color};font-size:10px;text-transform:capitalize">${roleKey}</span>`;
+        if (wp.time_hours != null && wp.time_hours > 0) {
+          const th = wp.time_hours >= 1 ? `${wp.time_hours}h` : `${Math.round(wp.time_hours * 60)}min`;
+          const modeIcon = MODE_ICONS[wp.mode ?? "road"] ?? "🚗";
+          const distStr = wp.distance_miles != null ? ` · ${wp.distance_miles} mi` : "";
+          popupContent += `<br/><span style="font-size:11px;color:#555">${modeIcon} ${th}${distStr} from prev</span>`;
         }
 
         L.marker([wp.lat, wp.lng], { icon }).addTo(map).bindPopup(popupContent);
@@ -76,26 +109,38 @@ export default function MapView({ waypoints }: { waypoints: MapWaypoint[] }) {
       });
 
       if (bounds.length > 1) {
-        // Draw route segments with individual colours
         for (let i = 0; i < waypoints.length - 1; i++) {
           const a = waypoints[i];
           const b = waypoints[i + 1];
-          L.polyline([[a.lat, a.lng], [b.lat, b.lng]], {
-            color: "#6366f1", weight: 3, opacity: 0.7, dashArray: "6,4",
-          }).addTo(map);
+          const mode = b.mode ?? "road";
+          const segColor = MODE_COLORS[mode] ?? "#6366f1";
+          const isAir = mode === "air";
 
-          // Segment label at midpoint
-          if (b.time_hours != null && b.distance_miles != null) {
+          if (isAir) {
+            // Dashed straight line for flights
+            L.polyline([[a.lat, a.lng], [b.lat, b.lng]], {
+              color: segColor, weight: 2, opacity: 0.6, dashArray: "8,6",
+            }).addTo(map);
+          } else {
+            // Solid line for road/rail/ferry
+            L.polyline([[a.lat, a.lng], [b.lat, b.lng]], {
+              color: segColor, weight: 3, opacity: 0.75, dashArray: mode === "road" ? "6,4" : undefined,
+            }).addTo(map);
+          }
+
+          // Segment pill at midpoint
+          if (b.time_hours != null && b.time_hours > 0) {
             const midLat = (a.lat + b.lat) / 2;
             const midLng = (a.lng + b.lng) / 2;
-            const timeStr = b.time_hours >= 1
-              ? `${b.time_hours}h`
-              : `${Math.round(b.time_hours * 60)}min`;
-            const labelHtml = `<div style="transform:translate(-50%,-50%);background:rgba(20,20,32,0.88);color:white;font-size:10px;font-weight:600;padding:4px 9px;border-radius:20px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.18);cursor:pointer;">🕐 ${timeStr} &nbsp;·&nbsp; ${b.distance_miles} mi</div>`;
-            const segIcon = L.divIcon({ className: "", html: labelHtml, iconSize: [0, 0], iconAnchor: [0, 0] });
+            const th = b.time_hours >= 1 ? `${b.time_hours}h` : `${Math.round(b.time_hours * 60)}min`;
+            const modeIcon = MODE_ICONS[mode] ?? "🚗";
+            const distPart = !isAir && b.distance_miles != null ? ` · ${b.distance_miles} mi` : "";
+            const pillHtml = `<div style="transform:translate(-50%,-50%);background:rgba(20,20,32,0.88);color:white;font-size:10px;font-weight:600;padding:4px 9px;border-radius:20px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.45);border:1px solid ${segColor};cursor:pointer;">${modeIcon} ${th}${distPart}</div>`;
+            const segIcon = L.divIcon({ className: "", html: pillHtml, iconSize: [0, 0], iconAnchor: [0, 0] });
+            const distDetail = !isAir && b.distance_miles != null ? ` | ${b.distance_miles} miles` : "";
             L.marker([midLat, midLng], { icon: segIcon })
               .addTo(map)
-              .bindPopup(`<b style="font-size:12px">Segment ${i + 1} → ${i + 2}</b><br/><span style="font-size:11px">📍 ${a.name} → ${b.name}</span><br/><span style="font-size:11px;color:#555">🕐 ${timeStr} driving &nbsp;|&nbsp; ${b.distance_miles} miles</span>`);
+              .bindPopup(`<b style="font-size:12px">${modeIcon} ${a.name} → ${b.name}</b><br/><span style="font-size:11px;color:#555">${th} ${mode}${distDetail}</span>`);
           }
         }
       }
@@ -159,18 +204,25 @@ export default function MapView({ waypoints }: { waypoints: MapWaypoint[] }) {
           <div className="flex items-center gap-3 flex-wrap">
             <span className="text-white text-xs font-semibold">🗺️ {waypoints.length} stops</span>
             {(() => {
-              const totalMiles = waypoints.reduce((s, w) => s + (w.distance_miles ?? 0), 0);
               const totalHours = waypoints.reduce((s, w) => s + (w.time_hours ?? 0), 0);
-              if (totalMiles === 0) return null;
+              const roadMiles = waypoints.filter(w => (w.mode ?? "road") !== "air").reduce((s, w) => s + (w.distance_miles ?? 0), 0);
+              const modes = [...new Set(waypoints.map(w => w.mode).filter(Boolean))];
+              if (totalHours === 0) return null;
               const hh = Math.floor(totalHours);
               const mm = Math.round((totalHours - hh) * 60);
               const timeStr = hh > 0 ? `${hh}h ${mm > 0 ? mm + "m" : ""}`.trim() : `${mm}m`;
               return (
                 <>
                   <span className="text-gray-400 text-[10px]">·</span>
-                  <span className="text-amber-400 text-xs font-medium">🕐 {timeStr} drive</span>
-                  <span className="text-gray-400 text-[10px]">·</span>
-                  <span className="text-blue-400 text-xs font-medium">📍 {Math.round(totalMiles)} mi total</span>
+                  <span className="text-amber-400 text-xs font-medium">🕐 {timeStr} total</span>
+                  {roadMiles > 0 && <>
+                    <span className="text-gray-400 text-[10px]">·</span>
+                    <span className="text-blue-400 text-xs font-medium">📍 {Math.round(roadMiles)} mi</span>
+                  </>}
+                  {modes.length > 1 && <>
+                    <span className="text-gray-400 text-[10px]">·</span>
+                    <span className="text-gray-300 text-[10px]">{modes.map(m => MODE_ICONS[m as string] ?? "").join(" ")}</span>
+                  </>}
                 </>
               );
             })()}

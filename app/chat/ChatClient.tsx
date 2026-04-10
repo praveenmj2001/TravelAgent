@@ -32,15 +32,34 @@ function extractJsonArray(text: string, prefix: string): string | null {
 }
 
 function parseWaypoints(text: string): MapWaypoint[] {
-  const json = extractJsonArray(text, "ROADAI_MAP");
+  const json = extractJsonArray(text, "TRAVELAI_LOCATIONS");
   if (!json) return [];
   try { return JSON.parse(json) as MapWaypoint[]; } catch { return []; }
 }
 
+interface TravelSegment {
+  from: string;
+  to: string;
+  mode: "road" | "rail" | "ferry" | "air";
+  time_hours: number;
+  distance_miles: number | null;
+}
+
+function parseSegments(text: string): TravelSegment[] {
+  const json = extractJsonArray(text, "TRAVELAI_SEGMENTS");
+  if (!json) return [];
+  try { return JSON.parse(json) as TravelSegment[]; } catch { return []; }
+}
+
 function stripMapBlock(text: string): string {
   return text
-    .replace(/\n?ROADAI_MAP:[\s\S]*$/, "")
-    .replace(/\n?ROADAI_PLACES:[\s\S]*$/, "")
+    .replace(/\n?TRAVELAI_LOCATIONS:[\s\S]*$/, "")
+    .replace(/\n?TRAVELAI_PLACES:[\s\S]*$/, "")
+    .replace(/\n?TRAVELAI_SEGMENTS:[\s\S]*$/, "")
+    .replace(/\n?TRAVELAI_ITINERARY:[\s\S]*$/, "")
+    .replace(/\n?TRAVELAI_EVENTS:[\s\S]*$/, "")
+    .replace(/\n?TRAVELAI_NOTES:[\s\S]*$/, "")
+    .replace(/\n?TRAVELAI_TRIP:[\s\S]*$/, "")
     .trimEnd();
 }
 
@@ -48,10 +67,11 @@ interface PlaceLink {
   name: string;
   query: string;
   rating?: number;
+  role?: string;
 }
 
 function parsePlaces(text: string): PlaceLink[] {
-  const json = extractJsonArray(text, "ROADAI_PLACES");
+  const json = extractJsonArray(text, "TRAVELAI_PLACES");
   if (!json) return [];
   try { return JSON.parse(json) as PlaceLink[]; } catch { return []; }
 }
