@@ -15,12 +15,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "RoadAI — Plan Your Road Trip",
   description: "AI-powered road trip planning",
+  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "RoadAI" },
+  formatDetection: { telephone: false },
 };
 
 const ALL_THEMES = [
   "spring","summer","autumn","winter",
   "happy","joyful","hot","quirky",
-  "anime","kpop","indian","mideast","viking","african",
+  "anime","kpop","indian","mideast","viking","african"
 ];
 
 const DARK_BG_THEMES = ["anime","hot","indian","mideast","viking"];

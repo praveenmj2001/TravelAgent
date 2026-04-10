@@ -20,7 +20,7 @@ interface Conversation {
   updated_at: string;
 }
 
-export default function Sidebar({ userEmail }: { userEmail: string }) {
+export default function Sidebar({ userEmail, onClose }: { userEmail: string; onClose?: () => void }) {
   const [collapsed, setCollapsed] = useState(false);
   const [dark, setDark] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -155,7 +155,7 @@ export default function Sidebar({ userEmail }: { userEmail: string }) {
 
   return (
     <div
-      className={`flex flex-col dark:bg-gray-900 border-r border-black/10 dark:border-gray-700 h-screen sticky top-0 transition-all duration-300 ${
+      className={`flex flex-col dark:bg-gray-900 border-r border-black/10 dark:border-gray-700 h-screen transition-all duration-300 ${
         collapsed ? "w-14" : "w-64"
       }`}
       style={{ backgroundColor: "var(--t-sidebar-bg)" }}
@@ -185,7 +185,7 @@ export default function Sidebar({ userEmail }: { userEmail: string }) {
       {/* New Chat button */}
       <div className="p-2 shrink-0">
         <button
-          onClick={() => router.push("/chat")}
+          onClick={() => { router.push("/chat"); onClose?.(); }}
           className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-[var(--t-primary)] hover:bg-[var(--t-primary-hover)] text-white text-sm font-medium transition-colors ${collapsed ? "justify-center" : ""}`}
           title="New Chat"
         >

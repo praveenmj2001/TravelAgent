@@ -211,4 +211,48 @@ body {
   color: var(--voy-text);
   font-family: var(--fb);
   transition: background 0.45s ease, color 0.45s ease;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* ── Mobile safe areas (notch / home bar) ─────────────────── */
+.safe-top    { padding-top:    env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-left   { padding-left:   env(safe-area-inset-left); }
+.safe-right  { padding-right:  env(safe-area-inset-right); }
+
+/* ── Device preview frames ────────────────────────────────── */
+.device-frame-iphone {
+  width: 390px !important;
+  height: 844px !important;
+  border-radius: 50px !important;
+  border: 10px solid #1a1a1a !important;
+  box-shadow: 0 0 0 2px #333, 0 30px 80px rgba(0,0,0,0.5), inset 0 0 0 2px #555 !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+.device-frame-iphone::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 120px; height: 30px;
+  background: #1a1a1a;
+  border-radius: 0 0 20px 20px;
+  z-index: 10;
+}
+.device-frame-ipad {
+  width: 768px !important;
+  height: 1024px !important;
+  border-radius: 30px !important;
+  border: 12px solid #1a1a1a !important;
+  box-shadow: 0 0 0 2px #333, 0 30px 80px rgba(0,0,0,0.5), inset 0 0 0 2px #555 !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+/* ── Smooth scrolling on mobile ───────────────────────────── */
+* {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
 }

@@ -377,7 +377,7 @@ export default function ChatClient({
     <div className="flex flex-col flex-1 overflow-hidden relative">
         {/* Header */}
         <div
-          className="border-b border-black/10 dark:bg-gray-900 dark:border-gray-700 px-6 py-3 flex items-center justify-between shrink-0"
+          className="border-b border-black/10 dark:bg-gray-900 dark:border-gray-700 px-3 sm:px-6 py-3 flex items-center justify-between shrink-0 gap-2"
           style={{ backgroundColor: "var(--t-topbar-bg)" }}
         >
           <div>
@@ -395,26 +395,28 @@ export default function ChatClient({
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 13l4.553 2.276A1 1 0 0021 21.382V10.618a1 1 0 00-.553-.894L15 7m0 13V7m0 0L9 4" />
                 </svg>
-                Map
+                <span className="hidden sm:inline">Map</span>
               </button>
             )}
             <button
               onClick={handleExport}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 font-medium transition-colors"
+              className="flex items-center gap-1.5 text-xs px-2.5 sm:px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 font-medium transition-colors"
+              title="Copy chat"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
               </svg>
-              {exportCopied ? "Copied!" : "Copy"}
+              <span className="hidden sm:inline">{exportCopied ? "Copied!" : "Copy"}</span>
             </button>
             <button
               onClick={handlePrint}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 font-medium transition-colors"
+              className="flex items-center gap-1.5 text-xs px-2.5 sm:px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 font-medium transition-colors"
+              title="Print chat"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
               </svg>
-              Print
+              <span className="hidden sm:inline">Print</span>
             </button>
             {/* DEV: system prompt debug toggle */}
             <button
@@ -444,10 +446,10 @@ export default function ChatClient({
         )}
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 space-y-4">
           {messages.map((msg, i) => (
             <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className="max-w-[75%]">
+              <div className="max-w-[90%] sm:max-w-[75%]">
                 <div
                   className={`px-4 py-3 rounded-2xl text-sm ${
                     msg.role === "user"
@@ -551,7 +553,7 @@ export default function ChatClient({
 
         {/* Input */}
         <div
-          className="border-t border-black/10 dark:bg-gray-900 dark:border-gray-700 px-6 py-4 shrink-0"
+          className="border-t border-black/10 dark:bg-gray-900 dark:border-gray-700 px-3 sm:px-6 py-3 sm:py-4 shrink-0 safe-bottom"
           style={{ backgroundColor: "var(--t-topbar-bg)" }}
         >
           <div className="flex gap-3 items-end">
