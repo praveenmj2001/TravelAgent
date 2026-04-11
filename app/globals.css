@@ -1,0 +1,258 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ══════════════════════════════════════════════════════════════
+   VOYARA DESIGN SYSTEM — 14 Themes
+   Applied as  html.theme-*  so React never strips them
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Default / Spring ─────────────────────────────────────── */
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+
+  /* Voyara base tokens (spring) */
+  --bg:          #f0f7ee;
+  --bg2:         #e4f2de;
+  --primary:     #3a8a5e;
+  --primary2:    #2d6e4a;
+  --accent:      #d0eec4;
+  --voy-text:    #162a1e;
+  --gold:        #98cc52;
+  --gold2:       #c5e87a;
+  --card-bg:     #ffffff;
+  --card-shadow: 0 8px 48px rgba(58,138,94,0.13);
+  --section-alt: #e8f5e2;
+  --fd: 'Playfair Display', serif;
+  --fb: 'DM Sans', sans-serif;
+  --cr: 24px;
+  --br: 100px;
+  --hw: 900;
+  --hs: -2px;
+  --tr: 0.45s ease;
+
+  /* TravelAI hero gradient */
+  --t-hero-from: #022c22;
+  --t-hero-mid:  #064e3b;
+  --t-hero-to:   #3a8a5e;
+
+  /* Bridge: --t-* used throughout app components */
+  --t-primary:        var(--primary);
+  --t-primary-hover:  var(--primary2);
+  --t-primary-light:  var(--accent);
+  --t-primary-text:   var(--voy-text);
+  --t-ring:           var(--gold);
+  --t-bubble-user:    var(--primary);
+  --t-sidebar-bg:     var(--bg);
+  --t-sidebar-active: var(--accent);
+  --t-sidebar-text:   var(--voy-text);
+  --t-app-from:       var(--bg);
+  --t-app-mid:        var(--bg2);
+  --t-app-to:         var(--section-alt);
+  --t-topbar-bg:      var(--card-bg);
+  --t-accent:         var(--gold);
+}
+
+/* ── Summer ☀️ ────────────────────────────────────────────── */
+html.theme-summer {
+  --bg:#fff8ee; --bg2:#fff3da; --primary:#d97706; --primary2:#b45309;
+  --accent:#fde68a; --voy-text:#2d1500; --gold:#fbbf24; --gold2:#fcd34d;
+  --card-bg:#fffdf7; --card-shadow:0 8px 48px rgba(217,119,6,0.14);
+  --section-alt:#fef3c7;
+  --fd:'Playfair Display',serif; --fb:'DM Sans',sans-serif;
+  --cr:24px; --br:100px; --hw:900; --hs:-2px;
+  --t-hero-from:#2d1500; --t-hero-mid:#7c3500; --t-hero-to:#d97706;
+}
+
+/* ── Autumn 🍂 ────────────────────────────────────────────── */
+html.theme-autumn {
+  --bg:#faf3ec; --bg2:#f5ead9; --primary:#c05621; --primary2:#9c4119;
+  --accent:#fed7aa; --voy-text:#2c1008; --gold:#f97316; --gold2:#fb923c;
+  --card-bg:#fffbf7; --card-shadow:0 8px 48px rgba(192,86,33,0.13);
+  --section-alt:#feead5;
+  --fd:'Playfair Display',serif; --fb:'DM Sans',sans-serif;
+  --cr:24px; --br:100px; --hw:900; --hs:-2px;
+  --t-hero-from:#2c1008; --t-hero-mid:#7c2d12; --t-hero-to:#c05621;
+}
+
+/* ── Winter ❄️ ────────────────────────────────────────────── */
+html.theme-winter {
+  --bg:#eef4fa; --bg2:#ddeef8; --primary:#1d5fa0; --primary2:#164d85;
+  --accent:#bfdbfe; --voy-text:#0a1e30; --gold:#60a5fa; --gold2:#93c5fd;
+  --card-bg:#f8fbff; --card-shadow:0 8px 48px rgba(29,95,160,0.12);
+  --section-alt:#dbeafe;
+  --fd:'Playfair Display',serif; --fb:'DM Sans',sans-serif;
+  --cr:24px; --br:100px; --hw:900; --hs:-2px;
+  --t-hero-from:#0a1e30; --t-hero-mid:#0d2a4a; --t-hero-to:#1d5fa0;
+}
+
+/* ── Happy 😊 ─────────────────────────────────────────────── */
+html.theme-happy {
+  --bg:#fff9e6; --bg2:#fff3c8; --primary:#d97706; --primary2:#b45309;
+  --accent:#fde68a; --voy-text:#1c0f00; --gold:#f59e0b; --gold2:#fcd34d;
+  --card-bg:#fffef5; --card-shadow:0 8px 48px rgba(217,119,6,0.15);
+  --section-alt:#fef3c0;
+  --fd:'Pacifico',cursive; --fb:'Space Grotesk',sans-serif;
+  --cr:28px; --br:18px; --hw:400; --hs:2px;
+  --t-hero-from:#1c0f00; --t-hero-mid:#5c3a00; --t-hero-to:#d97706;
+}
+
+/* ── Joyful 🎉 ────────────────────────────────────────────── */
+html.theme-joyful {
+  --bg:#fdf0fc; --bg2:#f8ddf6; --primary:#c4318a; --primary2:#a02070;
+  --accent:#f7bcef; --voy-text:#1e000e; --gold:#f472b6; --gold2:#f9a8d4;
+  --card-bg:#fff8fe; --card-shadow:0 8px 48px rgba(196,49,138,0.18);
+  --section-alt:#fce8fa;
+  --fd:'Syne',sans-serif; --fb:'DM Sans',sans-serif;
+  --cr:36px; --br:14px; --hw:800; --hs:-2px;
+  --t-hero-from:#1e000e; --t-hero-mid:#700040; --t-hero-to:#c4318a;
+}
+
+/* ── Hot 🔥 ───────────────────────────────────────────────── */
+html.theme-hot {
+  --bg:#100400; --bg2:#1c0600; --primary:#ff4500; --primary2:#cc3300;
+  --accent:#2a0c00; --voy-text:#ffe4cc; --gold:#ff9500; --gold2:#ffcc00;
+  --card-bg:#180500; --card-shadow:0 8px 48px rgba(255,69,0,0.25);
+  --section-alt:#150400;
+  --fd:'Syne',sans-serif; --fb:'Space Grotesk',sans-serif;
+  --cr:10px; --br:8px; --hw:800; --hs:-4px;
+  --t-hero-from:#100400; --t-hero-mid:#2a0800; --t-hero-to:#ff4500;
+}
+
+/* ── Quirky 🪄 ────────────────────────────────────────────── */
+html.theme-quirky {
+  --bg:#f2edff; --bg2:#e8e0ff; --primary:#6d28d9; --primary2:#5b21b6;
+  --accent:#ddd6fe; --voy-text:#1a0a38; --gold:#8b5cf6; --gold2:#c4b5fd;
+  --card-bg:#f9f7ff; --card-shadow:0 8px 48px rgba(109,40,217,0.15);
+  --section-alt:#ede9ff;
+  --fd:'Pacifico',cursive; --fb:'Space Grotesk',sans-serif;
+  --cr:48px; --br:100px; --hw:400; --hs:1px;
+  --t-hero-from:#1a0a38; --t-hero-mid:#3b1a6e; --t-hero-to:#6d28d9;
+}
+
+/* ── Anime ⛩️ ─────────────────────────────────────────────── */
+html.theme-anime {
+  --bg:#0d0d1a; --bg2:#141428; --primary:#e040fb; --primary2:#aa00ff;
+  --accent:#1e1040; --voy-text:#f0e6ff; --gold:#ffdd57; --gold2:#ffe480;
+  --card-bg:#161630; --card-shadow:0 8px 48px rgba(224,64,251,0.22);
+  --section-alt:#12122a;
+  --fd:'Syne',sans-serif; --fb:'Space Grotesk',sans-serif;
+  --cr:6px; --br:4px; --hw:800; --hs:-2px;
+  --t-hero-from:#0d0d1a; --t-hero-mid:#14143a; --t-hero-to:#4a0080;
+}
+
+/* ── K-Pop 🎵 ─────────────────────────────────────────────── */
+html.theme-kpop {
+  --bg:#fff0f8; --bg2:#ffe0f2; --primary:#ff1493; --primary2:#c0006a;
+  --accent:#ffc1e3; --voy-text:#1a0010; --gold:#ff69b4; --gold2:#ffb3d9;
+  --card-bg:#fff8fc; --card-shadow:0 8px 48px rgba(255,20,147,0.18);
+  --section-alt:#fce8f5;
+  --fd:'Syne',sans-serif; --fb:'Space Grotesk',sans-serif;
+  --cr:40px; --br:100px; --hw:800; --hs:-2px;
+  --t-hero-from:#1a0010; --t-hero-mid:#5c0040; --t-hero-to:#c0006a;
+}
+
+/* ── Indian 🪔 ────────────────────────────────────────────── */
+html.theme-indian {
+  --bg:#1a0a00; --bg2:#2a1000; --primary:#ff8c00; --primary2:#e07000;
+  --accent:#3d1a00; --voy-text:#fff5e0; --gold:#ffd700; --gold2:#ffe066;
+  --card-bg:#221000; --card-shadow:0 8px 48px rgba(255,140,0,0.22);
+  --section-alt:#1e0d00;
+  --fd:'Noto Serif Devanagari',serif; --fb:'Space Grotesk',sans-serif;
+  --cr:4px; --br:4px; --hw:700; --hs:0px;
+  --t-hero-from:#1a0a00; --t-hero-mid:#3d1a00; --t-hero-to:#e07000;
+}
+
+/* ── Middle East 🌙 ───────────────────────────────────────── */
+html.theme-mideast {
+  --bg:#0a0a14; --bg2:#0f0f1e; --primary:#c9a227; --primary2:#a07e18;
+  --accent:#1a1a2e; --voy-text:#f5f0e8; --gold:#e8c542; --gold2:#f0d870;
+  --card-bg:#111124; --card-shadow:0 8px 48px rgba(201,162,39,0.18);
+  --section-alt:#0d0d1a;
+  --fd:'Playfair Display',serif; --fb:'DM Sans',sans-serif;
+  --cr:0px; --br:0px; --hw:700; --hs:1px;
+  --t-hero-from:#0a0a14; --t-hero-mid:#14140a; --t-hero-to:#a07e18;
+}
+
+/* ── Viking ⚔️ ────────────────────────────────────────────── */
+html.theme-viking {
+  --bg:#1a1208; --bg2:#241a0c; --primary:#8b6914; --primary2:#6d5210;
+  --accent:#2e2010; --voy-text:#f0e8d0; --gold:#d4a520; --gold2:#e8c040;
+  --card-bg:#201608; --card-shadow:0 8px 48px rgba(139,105,20,0.22);
+  --section-alt:#1c1408;
+  --fd:'Playfair Display',serif; --fb:'DM Sans',sans-serif;
+  --cr:2px; --br:2px; --hw:900; --hs:2px;
+  --t-hero-from:#1a1208; --t-hero-mid:#2e2010; --t-hero-to:#8b6914;
+}
+
+/* ── African 🦁 ───────────────────────────────────────────── */
+html.theme-african {
+  --bg:#fff8f0; --bg2:#fff0e0; --primary:#cc4400; --primary2:#aa3300;
+  --accent:#ffd4a8; --voy-text:#1a0800; --gold:#e8900a; --gold2:#f5b030;
+  --card-bg:#fffbf5; --card-shadow:0 8px 48px rgba(204,68,0,0.14);
+  --section-alt:#fff0dc;
+  --fd:'Playfair Display',serif; --fb:'DM Sans',sans-serif;
+  --cr:20px; --br:100px; --hw:900; --hs:-2px;
+  --t-hero-from:#1a0800; --t-hero-mid:#5c2000; --t-hero-to:#cc4400;
+}
+
+/* ── Tailwind theme ───────────────────────────────────────── */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* ── Base body ────────────────────────────────────────────── */
+body {
+  background: var(--bg);
+  color: var(--voy-text);
+  font-family: var(--fb);
+  transition: background 0.45s ease, color 0.45s ease;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* ── Mobile safe areas (notch / home bar) ─────────────────── */
+.safe-top    { padding-top:    env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-left   { padding-left:   env(safe-area-inset-left); }
+.safe-right  { padding-right:  env(safe-area-inset-right); }
+
+/* ── Device preview frames ────────────────────────────────── */
+.device-frame-iphone {
+  width: 390px !important;
+  height: 844px !important;
+  border-radius: 50px !important;
+  border: 10px solid #1a1a1a !important;
+  box-shadow: 0 0 0 2px #333, 0 30px 80px rgba(0,0,0,0.5), inset 0 0 0 2px #555 !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+.device-frame-iphone::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 120px; height: 30px;
+  background: #1a1a1a;
+  border-radius: 0 0 20px 20px;
+  z-index: 10;
+}
+.device-frame-ipad {
+  width: 768px !important;
+  height: 1024px !important;
+  border-radius: 30px !important;
+  border: 12px solid #1a1a1a !important;
+  box-shadow: 0 0 0 2px #333, 0 30px 80px rgba(0,0,0,0.5), inset 0 0 0 2px #555 !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+/* ── Smooth scrolling on mobile ───────────────────────────── */
+* {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
