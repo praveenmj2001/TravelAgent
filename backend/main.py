@@ -7,7 +7,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from dotenv import load_dotenv
 from database import engine, get_db, SessionLocal
-from models import Base, Conversation, Message, SavedTrip, UserProfile
+from models import Base, Conversation, Message, SavedTrip, UserProfile, LikedPlace
 from datetime import datetime, timezone
 import anthropic
 import json
@@ -36,6 +36,20 @@ def _migrate_db():
         for col, col_type in new_cols.items():
             if col not in existing:
                 conn.execute(text(f"ALTER TABLE conversations ADD COLUMN {col} {col_type}"))
+        conn.commit()
+
+        # Create liked_places table if missing
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS liked_places (
+                id VARCHAR PRIMARY KEY,
+                user_email VARCHAR NOT NULL,
+                name VARCHAR NOT NULL,
+                query VARCHAR NOT NULL,
+                category VARCHAR,
+                rating VARCHAR,
+                created_at DATETIME
+            )
+        """))
         conn.commit()
 
 _migrate_db()
@@ -108,6 +122,17 @@ Prefer higher-rated and better-fit options.
 EVENTS, FESTIVALS, AND SEASONALITY
 Whenever the user mentions a destination, city, travel dates, month, season, or holiday period — proactively mention relevant festivals, concerts, markets, sports events, seasonal highlights, weather-sensitive experiences, closures, crowd patterns, and booking pressure periods.
 For each, include: event name, short description, exact or typical dates, venue/area, whether tickets are needed, and a planning tip.
+
+REST STOPS (road trips)
+For any road trip leg longer than 1.5 hours, proactively suggest rest stops tailored to the traveler profile:
+- Family with kids: every 1.5–2 hours — prioritise rest areas with playgrounds, clean restrooms, picnic tables, and fast food options nearby.
+- Elderly or accessibility needs: every 1–1.5 hours — prioritise smooth pull-offs, accessible restrooms, and shaded seating.
+- Solo or couple: every 2–2.5 hours — can be lighter stops: fuel + coffee, scenic overlook, or a quick stretch.
+- Groups/friends: suggest stops that double as experiences — quirky roadside attractions, local diners, breweries, viewpoints.
+- Adventure/outdoors travelers: suggest trailhead pull-offs, scenic overlooks, or swimming spots as rest stops.
+- Luxury travelers: prioritise premium rest stops — upscale service plazas, hotel lobbies for a coffee, or full sit-down lunch spots.
+For each rest stop include: name, what it offers, approximate mileage/time from last stop, and why it fits this traveler.
+Include rest stops in TRAVELAI_LOCATIONS with role "rest_area" and in TRAVELAI_PLACES.
 
 LOGISTICS
 Always think through: drive times, transfer times, airport arrival buffers, layovers, check-in/check-out timing, ferry/port timing, parking, fuel or charging needs, food availability, restroom access, weather and daylight, fatigue and pacing, reservation needs, crowds and seasonal risk.
@@ -196,6 +221,14 @@ class TripPersonaRequest(BaseModel):
     meet_location: str | None = None
     meet_time: str | None = None
     meet_date: str | None = None
+
+
+class LikePlaceRequest(BaseModel):
+    user_email: str
+    name: str
+    query: str
+    category: str | None = None
+    rating: str | None = None
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -388,8 +421,17 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, db
     is_first_exchange = len(all_messages) == 1
     current_title = conv.title
 
+    # Load user's liked places for personalisation
+    liked = db.query(LikedPlace).filter(LikedPlace.user_email == body.user_email).order_by(LikedPlace.created_at.desc()).limit(30).all()
+    liked_context = ""
+    if liked:
+        liked_names = ", ".join(f"{p.name} ({p.category or 'place'})" for p in liked)
+        liked_context = f"The user has hearted (saved as favourites) these places from past recommendations: {liked_names}. Use these to infer their taste — lean toward similar vibes, categories, and quality levels when suggesting new places."
+
     # Build system prompt with per-trip persona + location context
     context_lines = []
+    if liked_context:
+        context_lines.append(liked_context)
 
     if conv.travelling_as == "meetup":
         # Meetup mode — different system prompt focus
@@ -613,6 +655,44 @@ def upsert_profile(body: UpsertProfileRequest, db: Session = Depends(get_db)):
         "home_city": profile.home_city,
         "onboarded": profile.onboarded,
     }
+
+
+# ── Liked Places ─────────────────────────────────────────────────────────────
+
+@app.get("/liked-places")
+def list_liked_places(user_email: str, db: Session = Depends(get_db)):
+    places = db.query(LikedPlace).filter(LikedPlace.user_email == user_email).order_by(LikedPlace.created_at.desc()).all()
+    return [{"id": p.id, "name": p.name, "query": p.query, "category": p.category, "rating": p.rating} for p in places]
+
+
+@app.post("/liked-places")
+def like_place(body: LikePlaceRequest, db: Session = Depends(get_db)):
+    # Prevent duplicates by name+email
+    existing = db.query(LikedPlace).filter(LikedPlace.user_email == body.user_email, LikedPlace.name == body.name).first()
+    if existing:
+        return {"id": existing.id, "name": existing.name, "already_liked": True}
+    place = LikedPlace(
+        user_email=body.user_email,
+        name=body.name,
+        query=body.query,
+        category=body.category,
+        rating=body.rating,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(place)
+    db.commit()
+    db.refresh(place)
+    return {"id": place.id, "name": place.name, "already_liked": False}
+
+
+@app.delete("/liked-places/{place_id}")
+def unlike_place(place_id: str, db: Session = Depends(get_db)):
+    place = db.query(LikedPlace).filter(LikedPlace.id == place_id).first()
+    if not place:
+        raise HTTPException(status_code=404, detail="Not found")
+    db.delete(place)
+    db.commit()
+    return {"ok": True}
 
 
 # ── Health ────────────────────────────────────────────────────────────────────

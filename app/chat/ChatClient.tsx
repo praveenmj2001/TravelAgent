@@ -90,12 +90,15 @@ export default function ChatClient({
   const [loading, setLoading] = useState(false);
   const [convId, setConvId] = useState<string | undefined>(initialConvId);
   const [title, setTitle] = useState("New Conversation");
-  const [showMap, setShowMap] = useState(false);
+  const [showMap, setShowMap] = useState(true);
+  const [mapCollapsed, setMapCollapsed] = useState(false);
   const [activeWaypoints, setActiveWaypoints] = useState<MapWaypoint[]>([]);
   const [savedMsgIds, setSavedMsgIds] = useState<Set<number>>(new Set());
   const [savingIdx, setSavingIdx] = useState<number | null>(null);
   const [exportCopied, setExportCopied] = useState(false);
   const [userLocation, setUserLocation] = useState<string | null>(null);
+  const [likedPlaceNames, setLikedPlaceNames] = useState<Set<string>>(new Set());
+  const [likedPlaceIds, setLikedPlaceIds] = useState<Record<string, string>>({});
 
   // DEV: system prompt debug panel
   const [systemPrompt, setSystemPrompt] = useState<string>("");
@@ -188,7 +191,7 @@ export default function ChatClient({
     );
   }, [initialConvId]);
 
-  // Update map from latest assistant message with waypoints
+  // Update map whenever messages change — scan newest first, keep last known waypoints
   useEffect(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i].role === "assistant") {
@@ -199,8 +202,40 @@ export default function ChatClient({
         }
       }
     }
-    setActiveWaypoints([]);
+    // Do NOT clear — keep previous waypoints when a follow-up has no locations block
   }, [messages]);
+
+  // Load user's liked places on mount
+  useEffect(() => {
+    if (!userEmail) return;
+    fetch(`${BACKEND}/liked-places?user_email=${encodeURIComponent(userEmail)}`)
+      .then((r) => r.json())
+      .then((data: { id: string; name: string }[]) => {
+        setLikedPlaceNames(new Set(data.map((p) => p.name)));
+        setLikedPlaceIds(Object.fromEntries(data.map((p) => [p.name, p.id])));
+      })
+      .catch(() => {});
+  }, [userEmail]);
+
+  async function handleLikePlace(place: PlaceLink) {
+    const isLiked = likedPlaceNames.has(place.name);
+    if (isLiked) {
+      const id = likedPlaceIds[place.name];
+      if (!id) return;
+      await fetch(`${BACKEND}/liked-places/${id}`, { method: "DELETE" });
+      setLikedPlaceNames((prev) => { const s = new Set(prev); s.delete(place.name); return s; });
+      setLikedPlaceIds((prev) => { const m = { ...prev }; delete m[place.name]; return m; });
+    } else {
+      const res = await fetch(`${BACKEND}/liked-places`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_email: userEmail, name: place.name, query: place.query, category: place.role ?? null, rating: place.rating ? String(place.rating) : null }),
+      });
+      const data = await res.json();
+      setLikedPlaceNames((prev) => new Set([...prev, place.name]));
+      setLikedPlaceIds((prev) => ({ ...prev, [place.name]: data.id }));
+    }
+  }
 
   // Listen for "Try Now" from sidebar persona section
   useEffect(() => {
@@ -254,6 +289,7 @@ export default function ChatClient({
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let fullText = "";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -270,11 +306,15 @@ export default function ChatClient({
             if (event.type === "system_prompt") {
               setSystemPrompt(event.text);
             } else if (event.type === "chunk") {
+              fullText += event.text;
               setMessages((prev) => {
                 const updated = [...prev];
-                updated[updated.length - 1] = { role: "assistant", content: updated[updated.length - 1].content + event.text };
+                updated[updated.length - 1] = { role: "assistant", content: fullText };
                 return updated;
               });
+              // Update map live as soon as TRAVELAI_LOCATIONS block is complete in the stream
+              const liveWps = parseWaypoints(fullText);
+              if (liveWps.length > 0) setActiveWaypoints(liveWps);
             } else if (event.type === "done") {
               if (event.title) setTitle(event.title);
               window.dispatchEvent(new Event("conversation-updated"));
@@ -373,8 +413,11 @@ export default function ChatClient({
   }
 
   return (
-    <div className="flex flex-1 overflow-hidden h-[calc(100vh-56px)]">
-    <div className="flex flex-col flex-1 overflow-hidden relative">
+    <div style={{ display: "flex", flex: 1, overflow: "hidden", height: "100%", minHeight: 0 }}>
+
+      {/* ── Chat column ─────────────────────────────────────────── */}
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden", minWidth: 0, position: "relative" }}>
+
         {/* Header */}
         <div
           className="border-b border-black/10 dark:bg-gray-900 dark:border-gray-700 px-3 sm:px-6 py-3 flex items-center justify-between shrink-0 gap-2"
@@ -385,19 +428,18 @@ export default function ChatClient({
             <p className="text-xs text-gray-500 dark:text-gray-500">Road trip assistant · AI Powered</p>
           </div>
           <div className="flex items-center gap-2">
-            {activeWaypoints.length > 0 && (
-              <button
-                onClick={() => setShowMap((v) => !v)}
-                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${
-                  showMap ? "bg-[var(--t-primary)] text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-                }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 13l4.553 2.276A1 1 0 0021 21.382V10.618a1 1 0 00-.553-.894L15 7m0 13V7m0 0L9 4" />
-                </svg>
-                <span className="hidden sm:inline">Map</span>
-              </button>
-            )}
+            {/* Map toggle — mobile only (on desktop map is always visible) */}
+            <button
+              onClick={() => setShowMap((v) => !v)}
+              className={`lg:hidden flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${
+                showMap ? "bg-[var(--t-primary)] text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+              }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 13l4.553 2.276A1 1 0 0021 21.382V10.618a1 1 0 00-.553-.894L15 7m0 13V7m0 0L9 4" />
+              </svg>
+              Map
+            </button>
             <button
               onClick={handleExport}
               className="flex items-center gap-1.5 text-xs px-2.5 sm:px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 font-medium transition-colors"
@@ -436,12 +478,17 @@ export default function ChatClient({
           </div>
         </div>
 
-        {/* Map panel */}
-        {showMap && activeWaypoints.length > 0 && (
-          <div className="bg-white dark:bg-gray-900 border-b border-black/10 dark:border-gray-700 shrink-0">
-            <div className="px-4 pb-2 pt-2">
+        {/* Mobile map panel — shown above messages when toggled */}
+        {showMap && (
+          <div className="lg:hidden border-b border-black/10 dark:border-gray-700 shrink-0" style={{ height: 260 }}>
+            {activeWaypoints.length > 0 ? (
               <MapView waypoints={activeWaypoints} />
-            </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full bg-gray-50 dark:bg-gray-900 gap-2">
+                <span className="text-3xl">🗺️</span>
+                <p className="text-xs text-gray-400 dark:text-gray-500">Your route will appear here</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -479,34 +526,41 @@ export default function ChatClient({
                       >
                         {stripMapBlock(msg.content)}
                       </ReactMarkdown>
-                      {parseWaypoints(msg.content).length > 0 && (
-                        <MapView waypoints={parseWaypoints(msg.content)} />
-                      )}
                       {parsePlaces(msg.content).length > 0 && (
                         <div className="mt-3 flex flex-wrap gap-2">
-                          {parsePlaces(msg.content).map((place) => (
-                            <a
-                              key={place.name}
-                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.query)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all hover:shadow-md hover:-translate-y-0.5"
-                              style={{
-                                borderColor: "var(--t-primary)",
-                                color: "var(--t-primary)",
-                                background: "var(--t-primary-light, #f0fdf4)",
-                              }}
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                              </svg>
-                              {place.name}
-                              {place.rating && (
-                                <span className="opacity-70">⭐ {place.rating}</span>
-                              )}
-                            </a>
-                          ))}
+                          {parsePlaces(msg.content).map((place) => {
+                            const liked = likedPlaceNames.has(place.name);
+                            return (
+                              <div key={place.name} className="inline-flex items-center rounded-full border overflow-hidden transition-all hover:shadow-md"
+                                style={{ borderColor: "var(--t-primary)", background: "var(--t-primary-light, #f0fdf4)" }}
+                              >
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.query)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 pl-3 pr-2 py-1.5 text-xs font-medium"
+                                  style={{ color: "var(--t-primary)" }}
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  </svg>
+                                  {place.name}
+                                  {place.rating && <span className="opacity-70">⭐ {place.rating}</span>}
+                                </a>
+                                <button
+                                  onClick={() => handleLikePlace(place)}
+                                  title={liked ? "Remove from favourites" : "Save to favourites"}
+                                  className="pr-2.5 py-1.5 transition-colors"
+                                  style={{ color: liked ? "#ef4444" : "var(--t-primary)", opacity: liked ? 1 : 0.4 }}
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill={liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                  </svg>
+                                </button>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </>
@@ -578,7 +632,7 @@ export default function ChatClient({
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">Enter to send · Shift+Enter for new line</p>
         </div>
 
-        {/* Persona Sheet overlay (bottom sheet, anchored to this column) */}
+        {/* Persona Sheet overlay */}
         {showPersonaSheet && convId && (
           <PersonaSheet
             userEmail={userEmail}
@@ -587,38 +641,100 @@ export default function ChatClient({
             onSkip={handlePersonaSkip}
           />
         )}
-    </div>
+      </div>
 
-    {/* DEV: System Prompt debug panel */}
-    {showPromptPanel && (
-      <div className="w-96 shrink-0 flex flex-col border-l border-amber-200 bg-amber-50 dark:bg-gray-950 dark:border-amber-900 overflow-hidden">
-        <div className="flex items-center justify-between px-3 py-2 border-b border-amber-200 dark:border-amber-900 shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wide">DEV · System Prompt</span>
-            {systemPrompt && (
-              <span className="text-[10px] text-amber-500">{systemPrompt.length} chars</span>
-            )}
-          </div>
+      {/* ── Map panel — always visible on desktop, collapsible ──── */}
+      <div
+        className="hidden lg:flex"
+        style={{
+          width: mapCollapsed ? 40 : "42%",
+          minWidth: mapCollapsed ? 40 : 320,
+          maxWidth: mapCollapsed ? 40 : 640,
+          flexShrink: 0,
+          flexDirection: "column",
+          borderLeft: "1px solid rgba(0,0,0,0.08)",
+          overflow: "hidden",
+          transition: "width 300ms ease, min-width 300ms ease, max-width 300ms ease",
+        }}
+      >
+        {/* Map header */}
+        <div
+          className="border-b border-black/10 dark:border-gray-700 px-3 py-2 flex items-center gap-2 shrink-0"
+          style={{ backgroundColor: "var(--t-topbar-bg)" }}
+        >
+          {!mapCollapsed && (
+            <>
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-[var(--t-primary)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 13l4.553 2.276A1 1 0 0021 21.382V10.618a1 1 0 00-.553-.894L15 7m0 13V7m0 0L9 4" />
+              </svg>
+              <span className="text-xs font-semibold text-[var(--t-primary-text)] dark:text-gray-200 flex-1">
+                Route Map
+              </span>
+              {activeWaypoints.length > 0 && (
+                <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                  {activeWaypoints.length} stops
+                </span>
+              )}
+            </>
+          )}
           <button
-            onClick={() => {
-              if (systemPrompt) { navigator.clipboard.writeText(systemPrompt); }
-            }}
-            className="text-[10px] text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-700 transition-colors"
+            onClick={() => setMapCollapsed((v) => !v)}
+            title={mapCollapsed ? "Expand map" : "Collapse map"}
+            className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500 transition-colors shrink-0"
+            style={{ marginLeft: mapCollapsed ? "auto" : undefined }}
           >
-            Copy
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={mapCollapsed ? "M11 19l-7-7 7-7m8 14l-7-7 7-7" : "M13 5l7 7-7 7M5 5l7 7-7 7"} />
+            </svg>
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-3">
-          {systemPrompt ? (
-            <pre className="text-[11px] font-mono text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
-              {systemPrompt}
-            </pre>
-          ) : (
-            <p className="text-xs text-amber-400 italic mt-2">Send a message to capture the system prompt.</p>
-          )}
-        </div>
+
+        {/* Map content — hidden when collapsed */}
+        {!mapCollapsed && (
+          <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+            {activeWaypoints.length > 0 ? (
+              <MapView waypoints={activeWaypoints} />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full gap-3"
+                style={{ background: "var(--t-app-from, #f0f7ee)" }}
+              >
+                <div className="text-5xl">🗺️</div>
+                <p className="text-sm font-medium text-gray-400 dark:text-gray-500">Your route will appear here</p>
+                <p className="text-xs text-gray-300 dark:text-gray-600 text-center px-6">Ask about a road trip and the map will update automatically</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
-    )}
+
+      {/* DEV: System Prompt debug panel */}
+      {showPromptPanel && (
+        <div className="w-96 shrink-0 flex flex-col border-l border-amber-200 bg-amber-50 dark:bg-gray-950 dark:border-amber-900 overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-amber-200 dark:border-amber-900 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wide">DEV · System Prompt</span>
+              {systemPrompt && (
+                <span className="text-[10px] text-amber-500">{systemPrompt.length} chars</span>
+              )}
+            </div>
+            <button
+              onClick={() => { if (systemPrompt) { navigator.clipboard.writeText(systemPrompt); } }}
+              className="text-[10px] text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-700 transition-colors"
+            >
+              Copy
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3">
+            {systemPrompt ? (
+              <pre className="text-[11px] font-mono text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+                {systemPrompt}
+              </pre>
+            ) : (
+              <p className="text-xs text-amber-400 italic mt-2">Send a message to capture the system prompt.</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

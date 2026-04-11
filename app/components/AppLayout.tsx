@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 import { DevicePreviewProvider, DeviceFrame } from "./DevicePreview";
@@ -13,37 +13,75 @@ export default function AppLayout({
   userEmail: string;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(true);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    setIsDesktop(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  const sidebarWidth = sidebarCollapsed ? 56 : 256;
 
   return (
     <DevicePreviewProvider>
       <DeviceFrame>
         <div
-          className="flex h-screen overflow-hidden dark:from-gray-900 dark:to-gray-800"
-          style={{ background: "linear-gradient(135deg, var(--t-app-from) 0%, var(--t-app-mid) 50%, var(--t-app-to) 100%)" }}
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            height: "100vh",
+            width: "100%",
+            overflow: "hidden",
+            background: "linear-gradient(135deg, var(--t-app-from) 0%, var(--t-app-mid) 50%, var(--t-app-to) 100%)",
+          }}
         >
+          {/* Desktop sidebar — only in flex flow when desktop width */}
+          {isDesktop && (
+            <div style={{ width: sidebarWidth, flexShrink: 0, overflow: "hidden", transition: "width 300ms" }}>
+              <Sidebar
+                userEmail={userEmail}
+                onClose={() => setSidebarOpen(false)}
+                collapsed={sidebarCollapsed}
+                onToggleCollapsed={() => setSidebarCollapsed((v) => !v)}
+              />
+            </div>
+          )}
+
           {/* Mobile overlay backdrop */}
-          {sidebarOpen && (
+          {!isDesktop && sidebarOpen && (
             <div
-              className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+              style={{ position: "fixed", inset: 0, zIndex: 30, background: "rgba(0,0,0,0.5)" }}
               onClick={() => setSidebarOpen(false)}
             />
           )}
 
-          {/* Sidebar — drawer on mobile, fixed on desktop */}
-          <div
-            className={`
-              fixed lg:static inset-y-0 left-0 z-40
-              transform transition-transform duration-300 ease-in-out
-              ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-            `}
-          >
-            <Sidebar userEmail={userEmail} onClose={() => setSidebarOpen(false)} />
-          </div>
+          {/* Mobile sidebar — fixed drawer */}
+          {!isDesktop && (
+            <div
+              style={{
+                position: "fixed",
+                top: 0,
+                bottom: 0,
+                left: 0,
+                zIndex: 40,
+                transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
+                transition: "transform 300ms ease-in-out",
+              }}
+            >
+              <Sidebar userEmail={userEmail} onClose={() => setSidebarOpen(false)} />
+            </div>
+          )}
 
           {/* Main content */}
-          <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             <TopBar userEmail={userEmail} onMenuClick={() => setSidebarOpen(true)} />
-            <main className="flex-1 overflow-auto">{children}</main>
+            <main style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              {children}
+            </main>
           </div>
         </div>
       </DeviceFrame>

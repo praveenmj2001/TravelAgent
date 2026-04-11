@@ -20,8 +20,17 @@ interface Conversation {
   updated_at: string;
 }
 
-export default function Sidebar({ userEmail, onClose }: { userEmail: string; onClose?: () => void }) {
-  const [collapsed, setCollapsed] = useState(false);
+export default function Sidebar({
+  userEmail,
+  onClose,
+  collapsed = false,
+  onToggleCollapsed,
+}: {
+  userEmail: string;
+  onClose?: () => void;
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
+}) {
   const [dark, setDark] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [persona, setPersona] = useState<TripPersona | null>(null);
@@ -166,7 +175,7 @@ export default function Sidebar({ userEmail, onClose }: { userEmail: string; onC
           <span className="text-sm font-semibold text-[var(--t-primary)] truncate">🚗 RoadAI</span>
         )}
         <button
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={onToggleCollapsed}
           className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 ml-auto"
           title={collapsed ? "Expand" : "Collapse"}
         >

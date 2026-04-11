@@ -70,3 +70,15 @@ class SavedTrip(Base):
     title = Column(String, nullable=False)
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class LikedPlace(Base):
+    __tablename__ = "liked_places"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_email = Column(String, nullable=False, index=True)
+    name = Column(String, nullable=False)
+    query = Column(String, nullable=False)
+    category = Column(String, nullable=True)   # restaurant | hotel | activity | viewpoint | etc
+    rating = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
