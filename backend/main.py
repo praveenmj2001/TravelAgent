@@ -24,14 +24,16 @@ def _migrate_db():
         inspector = inspect(engine)
         existing = {col["name"] for col in inspector.get_columns("conversations")}
         new_cols = {
-            "travelling_as": "VARCHAR",
-            "travel_style":  "VARCHAR",
-            "trip_length":   "VARCHAR",
-            "interests":     "VARCHAR",
-            "dietary":       "VARCHAR",
-            "meet_location": "VARCHAR",
-            "meet_time":     "VARCHAR",
-            "meet_date":     "VARCHAR",
+            "travelling_as":    "VARCHAR",
+            "travel_style":     "VARCHAR",
+            "trip_length":      "VARCHAR",
+            "interests":        "VARCHAR",
+            "dietary":          "VARCHAR",
+            "pets":             "VARCHAR",
+            "meet_location":    "VARCHAR",
+            "meet_time":        "VARCHAR",
+            "meet_date":        "VARCHAR",
+            "spontaneous_vibe": "VARCHAR",
         }
         for col, col_type in new_cols.items():
             if col not in existing:
@@ -158,24 +160,27 @@ OUTPUT STYLE
 - For longer responses use clean sections: Best option / Why it fits / Itinerary / Key places / Food / Stays / Transport & logistics / Important cautions / Booking priority.
 
 STRUCTURED DATA BLOCKS
-At the very end of your response, append machine-readable data blocks when applicable. No text after the final block. Use valid JSON only. Use null for unknown values.
+At the very end of EVERY response that mentions any named place, location, city, attraction, restaurant, hotel, or destination — append ALL of the following blocks. No text after the final block. Use valid JSON only. Use null for unknown values. Never skip these blocks when specific places are named.
 
-TRAVELAI_LOCATIONS — all geographic locations referenced (for map rendering):
-TRAVELAI_LOCATIONS:[{"name":"Location Name","lat":37.7749,"lng":-122.4194,"role":"origin","mode":"road","time_hours":null,"distance_miles":null},...]
+TRAVELAI_LOCATIONS — every named geographic location in this response (for map pin rendering):
+TRAVELAI_LOCATIONS:[{"name":"Location Name","lat":37.7749,"lng":-122.4194,"role":"activity","mode":null,"time_hours":null,"distance_miles":null},...]
 
-Roles: origin, destination, stop, hotel, airport, station, port, activity, restaurant, viewpoint, rest_area
-Modes: road, air, rail, ferry (the transport mode used to reach this location from the previous one)
-For every location except origin: include time_hours (travel time from previous, 1 decimal) and distance_miles (distance from previous, nearest mile — use null for air segments).
-Only include when confident about coordinates. Omit for general advice.
+Rules:
+- Include EVERY named city, town, attraction, restaurant, hotel, viewpoint, airport, station, port, rest area, or venue mentioned — not just route waypoints.
+- For place-suggestion responses (e.g. "here are 5 restaurants to try"), include all 5 as separate location entries.
+- Roles: origin, destination, stop, hotel, airport, station, port, activity, restaurant, viewpoint, rest_area
+- Modes: road, air, rail, ferry (transport used to reach from previous location — use null for standalone place suggestions)
+- time_hours / distance_miles: include for route legs, use null for standalone place suggestions.
+- You MUST know the coordinates with reasonable confidence — do not fabricate lat/lng. If unsure, omit that single entry only.
 
 TRAVELAI_PLACES — every named place, attraction, restaurant, hotel, venue mentioned:
-TRAVELAI_PLACES:[{"name":"Place Name","query":"Place Name City State","rating":4.8,"role":"stop"},...]
-Always include when specific named places are mentioned.
+TRAVELAI_PLACES:[{"name":"Place Name","query":"Place Name City State","rating":4.8,"role":"restaurant"},...]
+Always include for every named place in the response.
 
-TRAVELAI_SEGMENTS — ordered transport legs (for drawing route lines):
+TRAVELAI_SEGMENTS — ordered transport legs (for drawing route lines on the map):
 TRAVELAI_SEGMENTS:[{"from":"City A","to":"City B","mode":"road","time_hours":2.5,"distance_miles":145},...]
 Modes: road, rail, ferry, air
-Include for every leg of the journey. Always include when a multi-leg trip is described."""
+Include whenever a multi-stop journey or route is described. Omit only for pure place-listing responses with no route."""
 
 
 # ── Pydantic schemas ────────────────────────────────────────────────────────
@@ -192,6 +197,7 @@ class SendMessageRequest(BaseModel):
     content: str
     user_email: str
     user_location: str | None = None
+    voice_mode: bool = False
 
 
 class SaveTripRequest(BaseModel):
@@ -216,11 +222,13 @@ class TripPersonaRequest(BaseModel):
     travelling_as: str | None = None
     travel_style: str | None = None
     trip_length: str | None = None
-    interests: str | None = None   # comma-separated
-    dietary: str | None = None     # comma-separated
+    interests: str | None = None        # comma-separated
+    dietary: str | None = None          # comma-separated
+    pets: str | None = None             # comma-separated
     meet_location: str | None = None
     meet_time: str | None = None
     meet_date: str | None = None
+    spontaneous_vibe: str | None = None
 
 
 class LikePlaceRequest(BaseModel):
@@ -241,7 +249,7 @@ def generate_title(user_message: str, ai_response: str) -> str:
         messages=[{
             "role": "user",
             "content": (
-                "Give this road trip conversation a short title (3-5 words). "
+                "Give this travel conversation a short title (3-5 words). "
                 "Reply with ONLY the title, no punctuation, no quotes.\n\n"
                 f"User: {user_message[:200]}\nAssistant: {ai_response[:200]}"
             ),
@@ -342,14 +350,16 @@ def get_conversation(conversation_id: str, db: Session = Depends(get_db)):
         "title": conv.title,
         "messages": [{"role": m.role, "content": m.content} for m in conv.messages],
         "persona": {
-            "travelling_as": conv.travelling_as,
-            "travel_style":  conv.travel_style,
-            "trip_length":   conv.trip_length,
-            "interests":     conv.interests,
-            "dietary":       conv.dietary,
-            "meet_location": conv.meet_location,
-            "meet_time":     conv.meet_time,
-            "meet_date":     conv.meet_date,
+            "travelling_as":    conv.travelling_as,
+            "travel_style":     conv.travel_style,
+            "trip_length":      conv.trip_length,
+            "interests":        conv.interests,
+            "dietary":          conv.dietary,
+            "pets":             conv.pets,
+            "meet_location":    conv.meet_location,
+            "meet_time":        conv.meet_time,
+            "meet_date":        conv.meet_date,
+            "spontaneous_vibe": conv.spontaneous_vibe,
         },
     }
 
@@ -359,21 +369,23 @@ def update_trip_persona(conversation_id: str, body: TripPersonaRequest, db: Sess
     conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    for field in ["travelling_as", "travel_style", "trip_length", "interests", "dietary", "meet_location", "meet_time", "meet_date"]:
+    for field in ["travelling_as", "travel_style", "trip_length", "interests", "dietary", "pets", "meet_location", "meet_time", "meet_date", "spontaneous_vibe"]:
         val = getattr(body, field)
         if val is not None:
             setattr(conv, field, val)
     conv.updated_at = datetime.now(timezone.utc)
     db.commit()
     return {
-        "travelling_as": conv.travelling_as,
-        "travel_style":  conv.travel_style,
-        "trip_length":   conv.trip_length,
-        "interests":     conv.interests,
-        "dietary":       conv.dietary,
-        "meet_location": conv.meet_location,
-        "meet_time":     conv.meet_time,
-        "meet_date":     conv.meet_date,
+        "travelling_as":    conv.travelling_as,
+        "travel_style":     conv.travel_style,
+        "trip_length":      conv.trip_length,
+        "interests":        conv.interests,
+        "dietary":          conv.dietary,
+        "pets":             conv.pets,
+        "meet_location":    conv.meet_location,
+        "meet_time":        conv.meet_time,
+        "meet_date":        conv.meet_date,
+        "spontaneous_vibe": conv.spontaneous_vibe,
     }
 
 
@@ -397,6 +409,7 @@ def get_last_persona(user_email: str, travelling_as: str, db: Session = Depends(
         "trip_length":   conv.trip_length,
         "interests":     conv.interests,
         "dietary":       conv.dietary,
+        "pets":          conv.pets,
     }
 
 
@@ -422,18 +435,85 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, db
     current_title = conv.title
 
     # Load user's liked places for personalisation
-    liked = db.query(LikedPlace).filter(LikedPlace.user_email == body.user_email).order_by(LikedPlace.created_at.desc()).limit(30).all()
+    liked = db.query(LikedPlace).filter(LikedPlace.user_email == body.user_email).order_by(LikedPlace.created_at.desc()).limit(50).all()
     liked_context = ""
     if liked:
-        liked_names = ", ".join(f"{p.name} ({p.category or 'place'})" for p in liked)
-        liked_context = f"The user has hearted (saved as favourites) these places from past recommendations: {liked_names}. Use these to infer their taste — lean toward similar vibes, categories, and quality levels when suggesting new places."
+        # Group by category for richer context
+        from collections import defaultdict
+        by_cat: dict = defaultdict(list)
+        for p in liked:
+            cat = (p.category or "place").lower()
+            by_cat[cat].append(p)
+
+        lines = [
+            "USER TASTE PROFILE — the user has hearted these places from past recommendations.",
+            "Use this to deeply personalise every suggestion: match the vibe, quality level, and style of what they already love.",
+            "When you suggest a new place that resembles something they liked, explicitly say so (e.g. 'Similar vibe to [liked place] you saved').",
+            "Prioritise categories they heart most. Never suggest something that clashes with their established taste.",
+            "",
+        ]
+        for cat, places in sorted(by_cat.items(), key=lambda x: -len(x[1])):
+            place_list = ", ".join(
+                f"{p.name}" + (f" (⭐{p.rating})" if p.rating else "")
+                for p in places
+            )
+            lines.append(f"  • Liked {cat}s: {place_list}")
+
+        # Highlight top category as primary taste signal
+        top_cat, _ = max(by_cat.items(), key=lambda x: len(x[1]))
+        lines.append("")
+        lines.append(f"Their strongest preference is for {top_cat}s — weight suggestions in this category more heavily.")
+
+        liked_context = "\n".join(lines)
 
     # Build system prompt with per-trip persona + location context
     context_lines = []
     if liked_context:
         context_lines.append(liked_context)
 
-    if conv.travelling_as == "meetup":
+    if conv.travelling_as == "spontaneous":
+        # Spontaneous evening drive mode — proximity-first, kid-friendly, mood-driven
+        VIBE_LABELS = {
+            "scenic":     "a scenic drive with beautiful views",
+            "foodie":     "food and treats (ice cream, street food, something delicious)",
+            "citylights": "city lights and the night atmosphere",
+            "nature":     "nature and the outdoors",
+            "fun":        "something fun and exciting for kids",
+            "surprise":   "something unexpected and special",
+        }
+        vibe_phrase = VIBE_LABELS.get(conv.spontaneous_vibe or "", "a great spontaneous experience")
+
+        spontaneous_parts = [
+            "SPONTANEOUS EVENING DRIVE MODE.",
+            "The user wants to jump in the car RIGHT NOW with their kids for a spontaneous evening outing.",
+            "",
+            "CORE RULES:",
+            "- All suggestions must be within ~1 hour drive of the user's current location.",
+            "- It is EVENING or NIGHT — only suggest places that are actually open and atmospheric at this hour.",
+            "- Kid-friendly is non-negotiable: safe, accessible, easy entry, suitable for children of all ages.",
+            "- The experience should feel a little EXOTIC or SPECIAL — not the usual spots, something that makes it feel like a mini adventure.",
+            "- Focus on the FEELING and VIBE of each place, not just logistics. Make the user want to go.",
+            "- Keep it loose and mood-driven — suggest 2-3 options, let them pick what calls to them.",
+            "- No strict itinerary. Think: 'drive there, experience it, drive back happy'.",
+            "",
+            f"Tonight's vibe: {vibe_phrase}.",
+            "",
+            "FORMAT: For each suggestion give it a name, a 2-3 sentence vibe description (sensory, evocative), drive time from their location, and why it works for kids in the evening.",
+            "",
+            "IMPORTANT — DATA BLOCKS: At the very end append:",
+            "TRAVELAI_PLACES:[{\"name\":\"Place Name\",\"query\":\"Place Name City State\",\"rating\":4.5,\"role\":\"activity\"},...]",
+            "TRAVELAI_LOCATIONS:[{\"name\":\"Place Name\",\"lat\":0.0,\"lng\":0.0,\"role\":\"activity\",\"mode\":null,\"time_hours\":null,\"distance_miles\":null},...]",
+        ]
+        if body.user_location:
+            spontaneous_parts.append(f"User's current location (use as the starting point for all distance calculations): {body.user_location}")
+        else:
+            spontaneous_parts.append("User location not provided — ask for it before suggesting destinations.")
+        context_lines.append("\n".join(spontaneous_parts))
+        system_prompt = ROAD_TRIP_SYSTEM_PROMPT
+        if context_lines:
+            system_prompt = "\n\n".join(context_lines) + "\n\n" + ROAD_TRIP_SYSTEM_PROMPT
+
+    elif conv.travelling_as == "meetup":
         # Meetup mode — different system prompt focus
         meetup_parts = [
             "This is a MEETUP planning session, not a road trip.",
@@ -487,6 +567,11 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, db
             persona_parts.append(f"- Interests: {', '.join(conv.interests.split(','))}")
         if conv.dietary:
             persona_parts.append(f"- Dietary preferences: {', '.join(conv.dietary.split(','))}")
+        if conv.pets:
+            pet_labels = {"dog": "dog", "cat": "cat", "bird": "bird", "rabbit": "rabbit", "none": "no pets"}
+            pets_list = [pet_labels.get(p.strip(), p.strip()) for p in conv.pets.split(",") if p.strip() != "none"]
+            if pets_list:
+                persona_parts.append(f"- Travelling with pets: {', '.join(pets_list)} — suggest pet-friendly accommodation, restaurants with outdoor seating or pet policies, pet-friendly attractions, and note any venues that do not allow pets")
 
         if persona_parts:
             context_lines.append("User travel profile for this trip:\n" + "\n".join(persona_parts))
@@ -497,6 +582,17 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, db
         system_prompt = ROAD_TRIP_SYSTEM_PROMPT
         if context_lines:
             system_prompt = "\n\n".join(context_lines) + "\n\n" + ROAD_TRIP_SYSTEM_PROMPT
+
+    # Travel-agent voice mode: after responding, ask if there's anything else to capture
+    if body.voice_mode:
+        voice_instruction = (
+            "VOICE INPUT MODE: The user just spoke their request via voice. "
+            "After addressing their question or capturing their preference, end your response with a warm, "
+            "concise travel-agent style follow-up — for example: "
+            "'Is there anything else you'd like to add, or shall I start planning based on this?' "
+            "Keep it brief and conversational, like a friendly travel agent on a call."
+        )
+        system_prompt = voice_instruction + "\n\n" + system_prompt
 
     async def generate():
         # Use a fresh session — the Depends session may close before this generator finishes
@@ -510,9 +606,10 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, db
 
             with client.messages.stream(
                 model="claude-sonnet-4-6",
-                max_tokens=2048,
+                max_tokens=64000,
                 system=system_prompt,
                 messages=history,
+                extra_headers={"anthropic-beta": "output-128k-2025-02-19"},
             ) as stream:
                 for text_chunk in stream.text_stream:
                     full_text += text_chunk

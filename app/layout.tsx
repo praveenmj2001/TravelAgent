@@ -13,10 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RoadAI — Plan Your Road Trip",
-  description: "AI-powered road trip planning",
+  title: "TravelAI — Plan Your Next Adventure",
+  description: "AI-powered travel planning",
   viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "RoadAI" },
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "TravelAI" },
   formatDetection: { telephone: false },
 };
 

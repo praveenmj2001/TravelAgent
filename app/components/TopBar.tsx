@@ -3,6 +3,7 @@
 import { signOut } from "next-auth/react";
 import ThemeSwitcher from "./ThemeSwitcher";
 import { DevicePreviewToggle } from "./DevicePreview";
+import TravelAILogo from "./TravelAILogo";
 
 export default function TopBar({
   userEmail,
@@ -27,7 +28,10 @@ export default function TopBar({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <span className="text-sm font-bold text-[var(--t-primary)]">🚗 RoadAI</span>
+        <span className="flex items-center gap-1.5 text-sm font-bold text-[var(--t-primary)]">
+          <TravelAILogo size={20} />
+          TravelAI
+        </span>
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">

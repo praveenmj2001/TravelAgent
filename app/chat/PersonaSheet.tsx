@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   TripPersona,
   EMPTY_PERSONA,
@@ -9,17 +9,22 @@ import {
   TRIP_LENGTH,
   INTERESTS,
   DIETARY,
+  PETS,
   MEET_TIME,
+  SPONTANEOUS_VIBE,
 } from "./personaConfig";
+import MicButton from "./MicButton";
+import { useVoiceInput } from "./useVoiceInput";
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 // ── Standard trip steps (shown after travelling_as, when not meetup) ─────────
 const TRIP_STEPS = [
-  { key: "travel_style" as keyof TripPersona, label: "What's your travel style?", options: TRAVEL_STYLE,  multi: false },
-  { key: "trip_length"  as keyof TripPersona, label: "How long is this trip?",    options: TRIP_LENGTH,   multi: false },
-  { key: "interests"    as keyof TripPersona, label: "What do you love most?",    options: INTERESTS,     multi: true  },
-  { key: "dietary"      as keyof TripPersona, label: "Dietary preferences?",      options: DIETARY,       multi: true  },
+  { key: "travel_style" as keyof TripPersona, label: "What's your travel style?",    options: TRAVEL_STYLE,  multi: false },
+  { key: "trip_length"  as keyof TripPersona, label: "How long is this trip?",        options: TRIP_LENGTH,   multi: false },
+  { key: "interests"    as keyof TripPersona, label: "What do you love most?",        options: INTERESTS,     multi: true  },
+  { key: "dietary"      as keyof TripPersona, label: "Any dietary preferences?",      options: DIETARY,       multi: true  },
+  { key: "pets"         as keyof TripPersona, label: "Travelling with any pets? 🐾",  options: PETS,          multi: true  },
 ];
 
 interface Props {
@@ -36,8 +41,21 @@ export default function PersonaSheet({ userEmail, conversationId, onComplete, on
   const [meetupStep, setMeetupStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [prefilling, setPrefilling] = useState(false);
+  const locationInputRef = useRef("");
+
+  const locationVoice = useVoiceInput({
+    onTranscript: (text) => {
+      const next = locationInputRef.current ? locationInputRef.current + " " + text : text;
+      locationInputRef.current = next;
+      setPersona((p) => ({ ...p, meet_location: next }));
+    },
+    onInterim: (text) => {
+      setPersona((p) => ({ ...p, meet_location: (locationInputRef.current ? locationInputRef.current + " " : "") + text }));
+    },
+  });
 
   const isMeetup = persona.travelling_as === "meetup";
+  const isSpontaneous = persona.travelling_as === "spontaneous";
   // Phase: "profile" = picking travelling_as, "detail" = subsequent questions
   const phase = persona.travelling_as ? "detail" : "profile";
 
@@ -57,6 +75,7 @@ export default function PersonaSheet({ userEmail, conversationId, onComplete, on
             trip_length:  data.trip_length  ?? p.trip_length,
             interests:    data.interests    ?? p.interests,
             dietary:      data.dietary      ?? p.dietary,
+            pets:         data.pets         ?? p.pets,
           }));
         }
       })
@@ -99,6 +118,19 @@ export default function PersonaSheet({ userEmail, conversationId, onComplete, on
     return `I'm planning a meetup${locationPhrase}${timePhrase} ${datePhrase}. Can you suggest some good spots — preferably somewhere quiet with decent WiFi and comfortable seating?`;
   }
 
+  function buildSpontaneousAutoMessage(p: TripPersona): string {
+    const VIBE_PHRASES: Record<string, string> = {
+      scenic:     "a scenic drive with beautiful views",
+      foodie:     "food and treats — ice cream, street food, something delicious",
+      citylights: "city lights and the night atmosphere",
+      nature:     "nature and the outdoors",
+      fun:        "something fun and exciting for the kids",
+      surprise:   "anything that feels special and unexpected",
+    };
+    const vibePhrase = VIBE_PHRASES[p.spontaneous_vibe] || "a great experience";
+    return `It's evening and I'm feeling spontaneous! I want to take my kids on a quick drive — no more than 1 hour from where I am right now. I'm in the mood for ${vibePhrase}. Suggest 2-3 nearby places or experiences that would feel a little exotic or special, are open right now in the evening, and are great for kids. Give me the vibe of each place, not just the name — make me want to go.`;
+  }
+
   async function saveAndFinish(finalPersona: TripPersona) {
     setSaving(true);
     try {
@@ -108,10 +140,18 @@ export default function PersonaSheet({ userEmail, conversationId, onComplete, on
         body: JSON.stringify(finalPersona),
       });
       window.dispatchEvent(new Event("persona-updated"));
-      const autoMessage = finalPersona.travelling_as === "meetup" ? buildMeetupAutoMessage(finalPersona) : undefined;
+      const autoMessage = finalPersona.travelling_as === "meetup"
+        ? buildMeetupAutoMessage(finalPersona)
+        : finalPersona.travelling_as === "spontaneous"
+          ? buildSpontaneousAutoMessage(finalPersona)
+          : undefined;
       onComplete(finalPersona, autoMessage);
     } catch {
-      const autoMessage = finalPersona.travelling_as === "meetup" ? buildMeetupAutoMessage(finalPersona) : undefined;
+      const autoMessage = finalPersona.travelling_as === "meetup"
+        ? buildMeetupAutoMessage(finalPersona)
+        : finalPersona.travelling_as === "spontaneous"
+          ? buildSpontaneousAutoMessage(finalPersona)
+          : undefined;
       onComplete(finalPersona, autoMessage);
     }
     setSaving(false);
@@ -153,8 +193,8 @@ export default function PersonaSheet({ userEmail, conversationId, onComplete, on
   }
 
   // Total steps for progress bar
-  const totalSteps = isMeetup ? 4 : 1 + TRIP_STEPS.length; // 1 profile + N detail
-  const currentStepIndex = phase === "profile" ? 0 : isMeetup ? 1 + meetupStep : 1 + tripStep;
+  const totalSteps = isMeetup ? 4 : isSpontaneous ? 2 : 1 + TRIP_STEPS.length;
+  const currentStepIndex = phase === "profile" ? 0 : isMeetup ? 1 + meetupStep : isSpontaneous ? 1 : 1 + tripStep;
 
   // ── Profile step (travelling_as) ─────────────────────────────────────────────
   function renderProfileStep() {
@@ -199,16 +239,21 @@ export default function PersonaSheet({ userEmail, conversationId, onComplete, on
         <>
           <h2 className="text-base font-bold text-gray-900 dark:text-white mb-1">Where do you plan to meet?</h2>
           <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">City, neighbourhood, or a specific area.</p>
-          <input
-            type="text"
-            value={persona.meet_location}
-            onChange={(e) => setPersona((p) => ({ ...p, meet_location: e.target.value }))}
-            onKeyDown={(e) => { if (e.key === "Enter" && persona.meet_location.trim()) setMeetupStep(1); }}
-            placeholder="e.g. Downtown Seattle, Pike Place area…"
-            className="w-full border border-gray-200 dark:border-gray-700 rounded-2xl px-4 py-3 text-gray-900 dark:text-white dark:bg-gray-800 outline-none focus:ring-2 text-sm"
-            style={{ "--tw-ring-color": "var(--t-primary)" } as React.CSSProperties}
-            autoFocus
-          />
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={persona.meet_location}
+              onChange={(e) => { locationInputRef.current = e.target.value; setPersona((p) => ({ ...p, meet_location: e.target.value })); }}
+              onKeyDown={(e) => { if (e.key === "Enter" && persona.meet_location.trim()) setMeetupStep(1); }}
+              placeholder={locationVoice.state === "listening" ? "Listening…" : "e.g. Downtown Seattle, Pike Place area…"}
+              className={`flex-1 border rounded-2xl px-4 py-3 text-gray-900 dark:text-white dark:bg-gray-800 outline-none focus:ring-2 text-sm transition-colors ${
+                locationVoice.state === "listening" ? "border-red-300 bg-red-50 dark:bg-gray-800" : "border-gray-200 dark:border-gray-700"
+              }`}
+              style={{ "--tw-ring-color": "var(--t-primary)" } as React.CSSProperties}
+              autoFocus
+            />
+            <MicButton state={locationVoice.state} onToggle={locationVoice.toggle} size="sm" />
+          </div>
           {renderMeetupActions(() => setMeetupStep(1), !!persona.meet_location.trim())}
         </>
       );
@@ -282,6 +327,35 @@ export default function PersonaSheet({ userEmail, conversationId, onComplete, on
           )}
         </button>
       </div>
+    );
+  }
+
+  // ── Spontaneous drive step ────────────────────────────────────────────────────
+  function renderSpontaneousStep() {
+    return (
+      <>
+        <h2 className="text-base font-bold text-gray-900 dark:text-white mb-1">What's the vibe tonight? 🌙</h2>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
+          We'll find something magical within ~1 hr of where you are right now.
+        </p>
+        <ChipGrid options={SPONTANEOUS_VIBE} selectedKey="spontaneous_vibe" multi={false} />
+        <div className="flex items-center justify-between mt-5">
+          <button
+            onClick={() => saveAndFinish(persona)}
+            className="text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+          >
+            Skip
+          </button>
+          <button
+            onClick={() => saveAndFinish(persona)}
+            disabled={saving}
+            className="flex items-center gap-1.5 px-5 py-2.5 rounded-full text-sm font-bold text-white transition-all disabled:opacity-40"
+            style={{ background: "var(--t-primary)" }}
+          >
+            {saving ? <span className="animate-pulse">Finding spots…</span> : "Let's go 🌙"}
+          </button>
+        </div>
+      </>
     );
   }
 
@@ -361,7 +435,9 @@ export default function PersonaSheet({ userEmail, conversationId, onComplete, on
             ? renderProfileStep()
             : isMeetup
               ? renderMeetupStep()
-              : renderTripStep()
+              : isSpontaneous
+                ? renderSpontaneousStep()
+                : renderTripStep()
           }
         </div>
       </div>

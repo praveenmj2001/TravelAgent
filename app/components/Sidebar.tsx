@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import TravelAILogo from "./TravelAILogo";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import {
   TripPersona,
   PERSONA_CATEGORIES,
   MEETUP_DISPLAY_CATEGORIES,
+  SPONTANEOUS_DISPLAY_CATEGORIES,
   MEET_TIME,
   lookupEmoji,
   lookupLabel,
@@ -172,7 +174,10 @@ export default function Sidebar({
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-black/10 dark:border-gray-700 shrink-0">
         {!collapsed && (
-          <span className="text-sm font-semibold text-[var(--t-primary)] truncate">🚗 RoadAI</span>
+          <span className="flex items-center gap-1.5 text-sm font-semibold text-[var(--t-primary)] truncate">
+            <TravelAILogo size={18} />
+            TravelAI
+          </span>
         )}
         <button
           onClick={onToggleCollapsed}
@@ -230,12 +235,12 @@ export default function Sidebar({
                 ? "bg-[var(--t-sidebar-active)] text-[var(--t-sidebar-text)]"
                 : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
             } ${collapsed ? "justify-center" : ""}`}
-            title="Ask RoadAI"
+            title="Ask TravelAI"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
             </svg>
-            {!collapsed && <span>Ask RoadAI</span>}
+            {!collapsed && <span>Ask TravelAI</span>}
           </Link>
 
           {/* Conversation history */}
@@ -341,7 +346,58 @@ export default function Sidebar({
                     </p>
                   )}
 
-                  {persona?.travelling_as === "meetup"
+                  {persona?.travelling_as === "spontaneous"
+                    ? /* ── Spontaneous drive view ── */
+                      SPONTANEOUS_DISPLAY_CATEGORIES.map((cat) => {
+                        const isExpanded = expandedKey === cat.key;
+                        const isSaving = savingKey === cat.key;
+                        const rawVal = persona?.[cat.key] ?? "";
+                        return (
+                          <div key={cat.key} className="px-1">
+                            <button
+                              onClick={() => setExpandedKey(isExpanded ? null : cat.key)}
+                              className="w-full flex items-center justify-between px-2 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group"
+                            >
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 group-hover:text-[var(--t-primary)] transition-colors">
+                                {cat.label}
+                                {isSaving && <span className="ml-1 normal-case font-normal text-[var(--t-primary)] animate-pulse">saving…</span>}
+                              </span>
+                              <svg xmlns="http://www.w3.org/2000/svg" className={`w-3 h-3 text-gray-400 transition-transform shrink-0 ${isExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                            {!isExpanded && (
+                              <div className="px-2 pb-1">
+                                {rawVal ? (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: "var(--t-primary-light)", color: "var(--t-primary)" }}>
+                                    {lookupEmoji(cat.options as any, rawVal)} {lookupLabel(cat.options as any, rawVal)}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-gray-400 dark:text-gray-500 italic">Not set</span>
+                                )}
+                              </div>
+                            )}
+                            {isExpanded && (
+                              <div className="flex flex-wrap gap-1 px-2 pb-2 pt-1">
+                                {(cat.options as { value: string; emoji: string; label: string }[]).map((opt) => {
+                                  const selected = rawVal === opt.value;
+                                  return (
+                                    <button
+                                      key={opt.value}
+                                      onClick={() => { patchPersonaField(cat.key, opt.value); setExpandedKey(null); }}
+                                      className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-full border font-semibold transition-all"
+                                      style={{ borderColor: selected ? "var(--t-primary)" : "var(--accent, #e5e7eb)", background: selected ? "var(--t-primary-light)" : "transparent", color: selected ? "var(--t-primary)" : "var(--t-primary-text, #374151)" }}
+                                    >
+                                      <span>{opt.emoji}</span><span>{opt.label}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    : persona?.travelling_as === "meetup"
                     ? /* ── Meetup view ── */
                       MEETUP_DISPLAY_CATEGORIES.map((cat) => {
                         const isExpanded = expandedKey === cat.key;

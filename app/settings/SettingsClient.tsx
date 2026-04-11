@@ -11,6 +11,15 @@ interface SavedTrip {
   created_at: string;
 }
 
+interface LikedPlace {
+  id: string;
+  name: string;
+  query: string;
+  category: string | null;
+  rating: string | null;
+  created_at: string;
+}
+
 interface UserProfile {
   travel_persona?: string;
   travel_style?: string;
@@ -71,6 +80,8 @@ export default function SettingsClient({
   const [editingPersona, setEditingPersona] = useState(false);
   const [draftPersona, setDraftPersona] = useState<UserProfile>({});
   const [savingPersona, setSavingPersona] = useState(false);
+  const [likedPlaces, setLikedPlaces] = useState<LikedPlace[]>([]);
+  const [unlikingId, setUnlikingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`${BACKEND}/saved-trips?user_email=${encodeURIComponent(userEmail)}`)
@@ -86,6 +97,22 @@ export default function SettingsClient({
       .then((data) => setProfile(data))
       .catch(() => {});
   }, [userEmail]);
+
+  useEffect(() => {
+    fetch(`${BACKEND}/liked-places?user_email=${encodeURIComponent(userEmail)}`)
+      .then((r) => r.json())
+      .then((data) => setLikedPlaces(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, [userEmail]);
+
+  async function handleUnlike(id: string) {
+    setUnlikingId(id);
+    try {
+      await fetch(`${BACKEND}/liked-places/${id}`, { method: "DELETE" });
+      setLikedPlaces((prev) => prev.filter((p) => p.id !== id));
+    } catch {}
+    setUnlikingId(null);
+  }
 
   function startEditPersona() {
     setDraftPersona({
@@ -327,6 +354,95 @@ export default function SettingsClient({
           </div>
         )}
       </div>
+
+      {/* Liked Places */}
+      {likedPlaces.length > 0 && (() => {
+        // Group by category, fallback to "Other"
+        const CATEGORY_LABELS: Record<string, { label: string; emoji: string }> = {
+          restaurant: { label: "Restaurants & Food", emoji: "🍽️" },
+          food:       { label: "Restaurants & Food", emoji: "🍽️" },
+          cafe:       { label: "Cafés", emoji: "☕" },
+          activity:   { label: "Activities", emoji: "🎯" },
+          attraction: { label: "Attractions", emoji: "🏛️" },
+          hotel:      { label: "Hotels & Stays", emoji: "🏨" },
+          stay:       { label: "Hotels & Stays", emoji: "🏨" },
+          stop:       { label: "Road Trip Stops", emoji: "📍" },
+          park:       { label: "Parks & Nature", emoji: "🌿" },
+          bar:        { label: "Bars & Nightlife", emoji: "🍸" },
+          shop:       { label: "Shopping", emoji: "🛍️" },
+        };
+
+        const grouped = likedPlaces.reduce<Record<string, LikedPlace[]>>((acc, p) => {
+          const key = p.category?.toLowerCase() ?? "other";
+          if (!acc[key]) acc[key] = [];
+          acc[key].push(p);
+          return acc;
+        }, {});
+
+        return (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-8">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Liked Places</h2>
+              </div>
+              <span className="text-xs text-gray-400 dark:text-gray-500">{likedPlaces.length} saved</span>
+            </div>
+
+            <div className="flex flex-col gap-6">
+              {Object.entries(grouped).map(([cat, places]) => {
+                const meta = CATEGORY_LABELS[cat] ?? { label: cat.charAt(0).toUpperCase() + cat.slice(1), emoji: "📌" };
+                return (
+                  <div key={cat}>
+                    <p className="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-2">
+                      {meta.emoji} {meta.label}
+                    </p>
+                    <div className="flex flex-col gap-1.5">
+                      {places.map((place) => (
+                        <div
+                          key={place.id}
+                          className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-red-400 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                            </svg>
+                            <div className="min-w-0">
+                              <a
+                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.query)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm font-medium text-gray-900 dark:text-gray-100 hover:text-[var(--t-primary)] transition-colors truncate block"
+                              >
+                                {place.name}
+                              </a>
+                              {place.rating && (
+                                <span className="text-xs text-gray-400 dark:text-gray-500">⭐ {place.rating}</span>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleUnlike(place.id)}
+                            disabled={unlikingId === place.id}
+                            title="Remove from liked"
+                            className="shrink-0 p-1.5 rounded-full text-red-400 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-40"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Saved trips */}
       <div>

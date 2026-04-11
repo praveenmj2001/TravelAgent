@@ -79,7 +79,7 @@ export default function AppLayout({
           {/* Main content */}
           <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             <TopBar userEmail={userEmail} onMenuClick={() => setSidebarOpen(true)} />
-            <main style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <main style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflowY: "auto" }}>
               {children}
             </main>
           </div>

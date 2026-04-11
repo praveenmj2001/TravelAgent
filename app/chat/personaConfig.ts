@@ -4,11 +4,13 @@ export interface TripPersona {
   travelling_as: string;
   travel_style: string;
   trip_length: string;
-  interests: string;    // comma-separated
-  dietary: string;      // comma-separated
+  interests: string;          // comma-separated
+  dietary: string;            // comma-separated
+  pets: string;               // comma-separated
   meet_location: string;
   meet_time: string;
   meet_date: string;
+  spontaneous_vibe: string;   // for spontaneous drive mode
 }
 
 export const EMPTY_PERSONA: TripPersona = {
@@ -17,18 +19,30 @@ export const EMPTY_PERSONA: TripPersona = {
   trip_length: "",
   interests: "",
   dietary: "",
+  pets: "",
   meet_location: "",
   meet_time: "",
   meet_date: "",
+  spontaneous_vibe: "",
 };
 
 export const TRAVELLING_AS = [
-  { value: "solo",    emoji: "🧳", label: "Solo" },
-  { value: "couple",  emoji: "💑", label: "Couple" },
-  { value: "family",  emoji: "👨‍👩‍👧‍👦", label: "Family" },
-  { value: "friends", emoji: "🎉", label: "Friends" },
-  { value: "work",    emoji: "💼", label: "Work Trip" },
-  { value: "meetup",  emoji: "🤝", label: "Meetup" },
+  { value: "solo",         emoji: "🧳", label: "Solo" },
+  { value: "couple",       emoji: "💑", label: "Couple" },
+  { value: "family",       emoji: "👨‍👩‍👧‍👦", label: "Family" },
+  { value: "friends",      emoji: "🎉", label: "Friends" },
+  { value: "work",         emoji: "💼", label: "Work Trip" },
+  { value: "meetup",       emoji: "🤝", label: "Meetup" },
+  { value: "spontaneous",  emoji: "🌙", label: "Spontaneous Drive" },
+];
+
+export const SPONTANEOUS_VIBE = [
+  { value: "scenic",     emoji: "🌅", label: "Scenic Drive" },
+  { value: "foodie",     emoji: "🍦", label: "Food & Treats" },
+  { value: "citylights", emoji: "🌆", label: "City Lights" },
+  { value: "nature",     emoji: "🌿", label: "Nature & Outdoors" },
+  { value: "fun",        emoji: "🎡", label: "Fun & Activities" },
+  { value: "surprise",   emoji: "🎲", label: "Surprise Me" },
 ];
 
 export const MEET_TIME = [
@@ -66,6 +80,14 @@ export const INTERESTS = [
   { value: "mountains", emoji: "⛰️", label: "Mountains" },
 ];
 
+export const PETS = [
+  { value: "dog",    emoji: "🐶", label: "Dog" },
+  { value: "cat",    emoji: "🐱", label: "Cat" },
+  { value: "bird",   emoji: "🐦", label: "Bird" },
+  { value: "rabbit", emoji: "🐰", label: "Rabbit" },
+  { value: "none",   emoji: "🚫", label: "No Pets" },
+];
+
 export const DIETARY = [
   { value: "veg",          emoji: "🥗", label: "Veg" },
   { value: "vegan",        emoji: "🌱", label: "Vegan" },
@@ -85,6 +107,13 @@ export const PERSONA_CATEGORIES = [
   { key: "trip_length"   as keyof TripPersona, label: "Trip Length",     options: TRIP_LENGTH,   multi: false },
   { key: "interests"     as keyof TripPersona, label: "Interests",       options: INTERESTS,     multi: true  },
   { key: "dietary"       as keyof TripPersona, label: "Dietary",         options: DIETARY,       multi: true  },
+  { key: "pets"          as keyof TripPersona, label: "Travelling with Pets", options: PETS,     multi: true  },
+];
+
+// Spontaneous drive display categories (for sidebar)
+export const SPONTANEOUS_DISPLAY_CATEGORIES = [
+  { key: "travelling_as"    as keyof TripPersona, label: "Mode",  options: TRAVELLING_AS,    multi: false },
+  { key: "spontaneous_vibe" as keyof TripPersona, label: "Vibe",  options: SPONTANEOUS_VIBE, multi: false },
 ];
 
 // Meetup-specific display categories (for sidebar)

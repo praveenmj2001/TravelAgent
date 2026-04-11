@@ -203,7 +203,7 @@ export default function AskClient({ userEmail }: { userEmail: string }) {
 
       {/* Hero input */}
       <div className="px-6 pt-10 pb-6 max-w-3xl mx-auto w-full">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Ask RoadAI</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Ask TravelAI</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
           Start with a prompt below{personaLabel ? ` — tailored for ${personaLabel} trips` : ""}, or type your own.
         </p>

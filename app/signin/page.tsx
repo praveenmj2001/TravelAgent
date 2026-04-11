@@ -3,6 +3,7 @@
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import ThemeSwitcher from "@/app/components/ThemeSwitcher";
+import TravelAILogo from "@/app/components/TravelAILogo";
 
 const SEASON_CONTENT: Record<string, { emoji: string; headline: string; sub: string; trips: string[] }> = {
   spring: {
@@ -63,9 +64,9 @@ export default function SignInPage() {
           {/* Top */}
           <div>
             <Link href="/" className="flex items-center gap-2 mb-8">
-              <span className="text-2xl">🚗</span>
+              <TravelAILogo size={26} className="text-[var(--t-primary)]" />
               <span className="text-xl font-bold" style={{ color: "var(--t-primary-text)", fontFamily: "'DM Sans', sans-serif" }}>
-                RoadAI
+                TravelAI
               </span>
             </Link>
 
@@ -73,7 +74,7 @@ export default function SignInPage() {
               Welcome back
             </h1>
             <p className="text-sm mb-8" style={{ color: "#6b7280" }}>
-              Sign in to plan your next road trip with AI.
+              Sign in to plan your next adventure with AI.
             </p>
 
             {/* Google button — airial style */}
@@ -148,7 +149,7 @@ export default function SignInPage() {
           <div className="relative z-10">
             <span className="inline-flex items-center gap-2 text-white/70 text-xs font-medium bg-white/10 px-3 py-1.5 rounded-full border border-white/20">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-              AI-Powered Road Trip Planner
+              AI-Powered Travel Planner
             </span>
           </div>
 

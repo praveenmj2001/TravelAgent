@@ -20,11 +20,15 @@ class Conversation(Base):
     trip_length   = Column(String, nullable=True)
     interests     = Column(String, nullable=True)  # comma-separated
     dietary       = Column(String, nullable=True)  # comma-separated
+    pets          = Column(String, nullable=True)  # comma-separated: dog,cat,bird,rabbit,none
 
     # Meetup-specific fields
     meet_location = Column(String, nullable=True)
     meet_time     = Column(String, nullable=True)  # morning | afternoon | evening | night
     meet_date     = Column(String, nullable=True)  # ISO date string or "today"
+
+    # Spontaneous drive fields
+    spontaneous_vibe = Column(String, nullable=True)  # scenic | foodie | citylights | nature | fun | surprise
 
     messages = relationship(
         "Message",

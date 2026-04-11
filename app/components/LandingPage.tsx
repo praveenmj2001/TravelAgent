@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import ThemeSwitcher from "./ThemeSwitcher";
+import TravelAILogo from "./TravelAILogo";
 
 const CYCLING_WORDS = ["scenic", "epic", "spontaneous", "unforgettable", "yours"];
 
@@ -14,7 +15,7 @@ const FEATURES = [
       </svg>
     ),
     title: "Smart Routes",
-    desc: "RoadAI plans your entire road trip — scenic byways, hidden gems, drive times, and alternatives you'd never find on your own.",
+    desc: "TravelAI plans your entire trip — scenic byways, hidden gems, drive times, and alternatives you'd never find on your own.",
   },
   {
     icon: (
@@ -23,7 +24,7 @@ const FEATURES = [
       </svg>
     ),
     title: "Your Travel Persona",
-    desc: "Tell RoadAI who you're travelling with, your style, length, interests, and diet — saved per trip so every suggestion fits you.",
+    desc: "Tell TravelAI who you're travelling with, your style, length, interests, and diet — saved per trip so every suggestion fits you.",
   },
   {
     icon: (
@@ -32,7 +33,7 @@ const FEATURES = [
       </svg>
     ),
     title: "Meetup Finder",
-    desc: "Planning a meetup? RoadAI finds quiet, WiFi-friendly venues — with opening hours awareness and timing cross-checks built in.",
+    desc: "Planning a meetup? TravelAI finds quiet, WiFi-friendly venues — with opening hours awareness and timing cross-checks built in.",
   },
   {
     icon: (
@@ -42,7 +43,7 @@ const FEATURES = [
       </svg>
     ),
     title: "Live Route Map",
-    desc: "An interactive map auto-appears as RoadAI mentions stops — colour-coded markers, route polyline, and fullscreen mode.",
+    desc: "An interactive map auto-appears as TravelAI mentions stops — colour-coded markers, route polyline, and fullscreen mode.",
   },
   {
     icon: (
@@ -77,7 +78,7 @@ const FEATURES = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
       </svg>
     ),
-    title: "Curated for Road Trips",
+    title: "Curated for Every Trip",
     desc: "Built specifically for driving adventures — rest stops, fuel, roadside diners, overlooks, and state parks included.",
   },
 ];
@@ -85,7 +86,7 @@ const FEATURES = [
 const STEPS = [
   { number: "01", title: "Sign in with Google", desc: "One click, no passwords. You're in." },
   { number: "02", title: "Set your trip persona", desc: "Who's coming? What's your style? Solo, couple, family, friends — or Meetup mode for venue hunting." },
-  { number: "03", title: "Chat & watch it build", desc: "Describe your dream trip. RoadAI streams a full itinerary while a live map plots every stop." },
+  { number: "03", title: "Chat & watch it build", desc: "Describe your dream trip. TravelAI streams a full itinerary while a live map plots every stop." },
   { number: "04", title: "Hit the road", desc: "Save, tweak, or print your plan. Your persona stays with the trip — pick up exactly where you left off." },
 ];
 
@@ -118,8 +119,8 @@ export default function LandingPage() {
       <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? "bg-white/90 backdrop-blur shadow-sm" : "bg-transparent"}`}>
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">🚗</span>
-            <span className={`font-bold text-lg ${scrolled ? "text-gray-900" : "text-white"}`}>RoadAI</span>
+            <TravelAILogo size={24} className={scrolled ? "text-gray-900" : "text-white"} />
+            <span className={`font-bold text-lg ${scrolled ? "text-gray-900" : "text-white"}`}>TravelAI</span>
           </div>
           <div className="flex items-center gap-3">
             <ThemeSwitcher />
@@ -147,7 +148,7 @@ export default function LandingPage() {
         </div>
 
         <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight max-w-4xl">
-          Your next road trip<br />should be{" "}
+          Your next adventure<br />should be{" "}
           <span
             className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-pink-300 inline-block transition-all duration-300"
             style={{ opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(8px)" }}
@@ -159,7 +160,7 @@ export default function LandingPage() {
 
         <p className="mt-6 text-lg md:text-xl text-white/70 max-w-xl leading-relaxed">
           No printed maps. No chaos. No regrets.<br />
-          Just chat with AI and get a road trip built around you.
+          Just chat with AI and get a trip built around you.
         </p>
 
         <div className="mt-10 flex flex-col sm:flex-row gap-4 items-center">
@@ -183,7 +184,7 @@ export default function LandingPage() {
           <div className="flex items-start gap-3 mb-3">
             <div className="w-7 h-7 rounded-full bg-indigo-400 flex items-center justify-center text-xs shrink-0">🧑</div>
             <div className="bg-white/20 text-white text-sm px-4 py-2.5 rounded-2xl rounded-tl-sm">
-              Plan a 4-day road trip from Denver to Moab with the family
+              Plan a 4-day trip from Denver to Moab with the family
             </div>
           </div>
           <div className="flex items-start gap-3">
@@ -201,7 +202,7 @@ export default function LandingPage() {
       <section className="py-24 px-6 bg-white">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900">Everything your road trip needs</h2>
+            <h2 className="text-4xl font-bold text-gray-900">Everything your trip needs</h2>
             <p className="mt-4 text-gray-500 text-lg">Road trips, meetups, and everything in between — fully personalized, every time.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 xl:grid-cols-4">
@@ -242,13 +243,13 @@ export default function LandingPage() {
         <div className="max-w-2xl mx-auto">
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">Ready to hit the road?</h2>
           <p className="text-white/70 text-lg mb-10">
-            Join road trippers who plan smarter, drive better, and discover more.
+            Join travellers who plan smarter, explore more, and discover more.
           </p>
           <button
             onClick={() => signIn("google", { callbackUrl: "/chat" })}
             className="px-10 py-4 bg-white font-semibold rounded-2xl text-lg hover:opacity-90 transition-all shadow-xl hover:-translate-y-0.5 text-[var(--t-primary)]"
           >
-            Start Your Road Trip →
+            Start Planning →
           </button>
         </div>
       </section>
@@ -256,10 +257,10 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="bg-gray-950 text-gray-500 py-8 px-6 text-center text-sm">
         <div className="flex items-center justify-center gap-2 mb-2">
-          <span className="text-lg">🚗</span>
-          <span className="text-white font-semibold">RoadAI</span>
+          <TravelAILogo size={20} className="text-white opacity-70" />
+          <span className="text-white font-semibold">TravelAI</span>
         </div>
-        <p>Built with RoadAI · {new Date().getFullYear()}</p>
+        <p>Built with TravelAI · {new Date().getFullYear()}</p>
       </footer>
 
     </div>
