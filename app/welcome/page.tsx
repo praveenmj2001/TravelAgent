@@ -12,7 +12,7 @@ export default async function WelcomePage() {
   const userEmail = user.email ?? "";
 
   return (
-    <AppLayout userEmail={userEmail}>
+    <AppLayout userEmail={userEmail} userImage={user.image ?? ""} userName={user.name ?? ""}>
       <div className="flex items-center justify-center min-h-screen">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-10 flex flex-col items-center gap-6 w-full max-w-sm text-center">
           {user.image && (

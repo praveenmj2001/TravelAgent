@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from google.oauth2 import id_token
@@ -23,21 +23,21 @@ def _migrate_db():
     with engine.connect() as conn:
         inspector = inspect(engine)
         existing = {col["name"] for col in inspector.get_columns("conversations")}
-        new_cols = {
-            "travelling_as":    "VARCHAR",
-            "travel_style":     "VARCHAR",
-            "trip_length":      "VARCHAR",
-            "interests":        "VARCHAR",
-            "dietary":          "VARCHAR",
-            "pets":             "VARCHAR",
-            "meet_location":    "VARCHAR",
-            "meet_time":        "VARCHAR",
-            "meet_date":        "VARCHAR",
-            "spontaneous_vibe": "VARCHAR",
-        }
-        for col, col_type in new_cols.items():
+        migrations = [
+            ("travelling_as",    "ALTER TABLE conversations ADD COLUMN travelling_as VARCHAR"),
+            ("travel_style",     "ALTER TABLE conversations ADD COLUMN travel_style VARCHAR"),
+            ("trip_length",      "ALTER TABLE conversations ADD COLUMN trip_length VARCHAR"),
+            ("interests",        "ALTER TABLE conversations ADD COLUMN interests VARCHAR"),
+            ("dietary",          "ALTER TABLE conversations ADD COLUMN dietary VARCHAR"),
+            ("pets",             "ALTER TABLE conversations ADD COLUMN pets VARCHAR"),
+            ("meet_location",    "ALTER TABLE conversations ADD COLUMN meet_location VARCHAR"),
+            ("meet_time",        "ALTER TABLE conversations ADD COLUMN meet_time VARCHAR"),
+            ("meet_date",        "ALTER TABLE conversations ADD COLUMN meet_date VARCHAR"),
+            ("spontaneous_vibe", "ALTER TABLE conversations ADD COLUMN spontaneous_vibe VARCHAR"),
+        ]
+        for col, sql in migrations:
             if col not in existing:
-                conn.execute(text(f"ALTER TABLE conversations ADD COLUMN {col} {col_type}"))
+                conn.execute(text(sql))
         conn.commit()
 
         # Create liked_places table if missing
@@ -59,6 +59,7 @@ _migrate_db()
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")
 
 app = FastAPI()
 
@@ -430,8 +431,21 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, db
         .order_by(Message.created_at)
         .all()
     )
-    history = [{"role": m.role, "content": m.content} for m in all_messages]
     is_first_exchange = len(all_messages) == 1
+
+    # Strip TRAVELAI JSON blocks from assistant messages before sending as history
+    # — they are large (thousands of tokens) and the AI doesn't need them as context
+    import re as _re
+    _block_re = _re.compile(r'TRAVELAI_(?:LOCATIONS|PLACES|SEGMENTS):\[.*?\]', _re.DOTALL)
+    def _strip_blocks(text: str) -> str:
+        return _block_re.sub("", text).strip()
+
+    # Cap history to last 10 messages to bound input token growth
+    recent = all_messages[-10:]
+    history = [
+        {"role": m.role, "content": _strip_blocks(m.content) if m.role == "assistant" else m.content}
+        for m in recent
+    ]
     current_title = conv.title
 
     # Load user's liked places for personalisation
@@ -606,10 +620,9 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, db
 
             with client.messages.stream(
                 model="claude-sonnet-4-6",
-                max_tokens=64000,
+                max_tokens=8192,
                 system=system_prompt,
                 messages=history,
-                extra_headers={"anthropic-beta": "output-128k-2025-02-19"},
             ) as stream:
                 for text_chunk in stream.text_stream:
                     full_text += text_chunk
@@ -790,6 +803,74 @@ def unlike_place(place_id: str, db: Session = Depends(get_db)):
     db.delete(place)
     db.commit()
     return {"ok": True}
+
+
+# ── Google Places Photos (Places API New) ────────────────────────────────────
+
+@app.get("/places/photos")
+async def get_place_photos(query: str):
+    if not GOOGLE_PLACES_API_KEY:
+        raise HTTPException(status_code=503, detail="Places API not configured")
+    import httpx as _httpx
+
+    headers = {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
+        "X-Goog-FieldMask": "places.displayName,places.rating,places.formattedAddress,places.photos",
+    }
+
+    async with _httpx.AsyncClient() as client:
+        search_resp = await client.post(
+            "https://places.googleapis.com/v1/places:searchText",
+            headers=headers,
+            json={"textQuery": query, "maxResultCount": 1},
+        )
+        search_data = search_resp.json()
+
+    places = search_data.get("places", [])
+    if not places:
+        return {"photos": [], "name": query, "rating": None, "address": None}
+
+    place = places[0]
+    name = place.get("displayName", {}).get("text", query)
+    rating = place.get("rating")
+    address = place.get("formattedAddress")
+    photo_refs = (place.get("photos") or [])[:10]
+
+    # Return backend proxy URLs — keeps API key server-side, browser loads each photo directly
+    backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+    photos = [
+        f"{backend_url}/places/photo-proxy?ref={p['name']}"
+        for p in photo_refs if p.get("name")
+    ]
+
+    return {"photos": photos, "name": name, "rating": rating, "address": address}
+
+
+@app.get("/places/photo-proxy")
+async def proxy_place_photo(ref: str):
+    """Proxy a single Google Places photo — keeps API key server-side."""
+    if not GOOGLE_PLACES_API_KEY:
+        raise HTTPException(status_code=503, detail="Places API not configured")
+    import httpx as _httpx
+
+    async with _httpx.AsyncClient(follow_redirects=True) as client:
+        resp = await client.get(
+            f"https://places.googleapis.com/v1/{ref}/media",
+            params={"maxWidthPx": 1200, "key": GOOGLE_PLACES_API_KEY},
+        )
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=resp.status_code, detail="Photo not found")
+
+    return Response(
+        content=resp.content,
+        media_type=resp.headers.get("content-type", "image/jpeg"),
+        headers={
+            "Cache-Control": "public, max-age=86400",
+            "Access-Control-Allow-Origin": "*",
+        },
+    )
 
 
 # ── Health ────────────────────────────────────────────────────────────────────

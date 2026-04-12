@@ -13,10 +13,12 @@ export default async function ChatPage({
 
   const { id, prompt } = await searchParams;
   const userEmail = session.user?.email ?? "";
+  const userImage = session.user?.image ?? "";
+  const userName = session.user?.name ?? "";
 
   return (
-    <AppLayout userEmail={userEmail}>
-      <ChatClient userEmail={userEmail} conversationId={id} autoPrompt={prompt} />
+    <AppLayout userEmail={userEmail} userImage={userImage} userName={userName}>
+      <ChatClient userEmail={userEmail} userImage={userImage} conversationId={id} autoPrompt={prompt} />
     </AppLayout>
   );
 }

@@ -8,9 +8,11 @@ export default async function AskPage() {
   if (!session) redirect("/signin");
 
   const userEmail = session.user?.email ?? "";
+  const userImage = session.user?.image ?? "";
+  const userName = session.user?.name ?? "";
 
   return (
-    <AppLayout userEmail={userEmail}>
+    <AppLayout userEmail={userEmail} userImage={userImage} userName={userName}>
       <AskClient userEmail={userEmail} />
     </AppLayout>
   );

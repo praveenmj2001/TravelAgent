@@ -8,9 +8,13 @@ import { DevicePreviewProvider, DeviceFrame } from "./DevicePreview";
 export default function AppLayout({
   children,
   userEmail,
+  userImage,
+  userName,
 }: {
   children: React.ReactNode;
   userEmail: string;
+  userImage?: string;
+  userName?: string;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -44,6 +48,8 @@ export default function AppLayout({
             <div style={{ width: sidebarWidth, flexShrink: 0, overflow: "hidden", transition: "width 300ms" }}>
               <Sidebar
                 userEmail={userEmail}
+                userImage={userImage}
+                userName={userName}
                 onClose={() => setSidebarOpen(false)}
                 collapsed={sidebarCollapsed}
                 onToggleCollapsed={() => setSidebarCollapsed((v) => !v)}
@@ -72,7 +78,7 @@ export default function AppLayout({
                 transition: "transform 300ms ease-in-out",
               }}
             >
-              <Sidebar userEmail={userEmail} onClose={() => setSidebarOpen(false)} />
+              <Sidebar userEmail={userEmail} userImage={userImage} userName={userName} onClose={() => setSidebarOpen(false)} />
             </div>
           )}
 
