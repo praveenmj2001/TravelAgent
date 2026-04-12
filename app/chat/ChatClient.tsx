@@ -7,6 +7,7 @@ import remarkGfm from "remark-gfm";
 import MapView, { MapWaypoint } from "./MapView";
 import PersonaSheet from "./PersonaSheet";
 import MicButton from "./MicButton";
+import PlaceModal from "./PlaceModal";
 import { useVoiceInput } from "./useVoiceInput";
 import { TripPersona, EMPTY_PERSONA } from "./personaConfig";
 
@@ -16,6 +17,42 @@ interface Message {
 }
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL;
+
+const THEME_GREETINGS: Record<string, string> = {
+  spring:  "The world is blooming — where will you wander this season? 🌸",
+  summer:  "Sun's out, bags out. Where are we headed? ☀️",
+  autumn:  "Golden roads are calling. What's your next destination? 🍂",
+  winter:  "Cold outside, warm adventures ahead. Where to? ❄️",
+  happy:   "Great vibes, great travels. Where's the next happy place? 😊",
+  joyful:  "Let's make some memories! Where are you off to? 🎉",
+  hot:     "Feeling bold? Let's plan something epic. Where to? 🔥",
+  quirky:  "Something weird, wonderful, and unforgettable awaits. Where? 🪄",
+  anime:   "Your journey begins here, traveller. Destination? ⛩️",
+  kpop:    "Ready to make your trip legendary? Drop your destination 🎵",
+  indian:  "Every journey is a new story. Where does yours begin? 🪔",
+  mideast: "A thousand and one destinations await. Where shall we go? 🌙",
+  viking:  "Chart the course. Where does the voyage take you? ⚔️",
+  african: "The world is vast and wild. Where's the adventure? 🦁",
+};
+
+function getThemeGreeting() {
+  if (typeof window === "undefined") return THEME_GREETINGS.spring;
+  const theme = localStorage.getItem("season") ?? "spring";
+  return THEME_GREETINGS[theme] ?? THEME_GREETINGS.spring;
+}
+
+const THINKING_PHRASES = [
+  "Plotting your route...",
+  "Checking hidden gems...",
+  "Scanning local favourites...",
+  "Mapping the best stops...",
+  "Consulting the travel oracle...",
+  "Packing the itinerary...",
+  "Finding scenic detours...",
+  "Calculating drive times...",
+  "Discovering local eats...",
+  "Sourcing insider tips...",
+];
 
 function extractJsonArray(text: string, prefix: string): string | null {
   const idx = text.indexOf(prefix + ":");
@@ -84,6 +121,7 @@ function injectHearts(
   content: React.ReactNode,
   places: PlaceLink[],
   likedNames: Set<string>,
+  onInfo: (place: PlaceLink) => void,
   onHeart: (p: PlaceLink) => void
 ): React.ReactNode {
   if (!places.length) return content;
@@ -105,7 +143,14 @@ function injectHearts(
           const liked = likedNames.has(place.name);
           return (
             <span key={idx} className="inline-flex items-center gap-0.5 align-baseline">
-              {part}
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.query || place.name)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline decoration-dotted underline-offset-2 hover:text-[var(--t-primary)] transition-colors"
+              >
+                {part}
+              </a>
               <button
                 type="button"
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); onHeart(place); }}
@@ -122,6 +167,16 @@ function injectHearts(
                 >
                   <path strokeLinecap="round" strokeLinejoin="round"
                     d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onInfo(place); }}
+                title="View on map"
+                className="inline-flex items-center ml-0.5 align-middle transition-colors cursor-pointer text-gray-400 hover:text-[var(--t-primary)]"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style={{ width: 13, height: 13 }}>
+                  <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836.042-.02a.75.75 0 01.67 1.34l-.04.022c-1.147.573-2.438-.463-2.127-1.706l.71-2.836-.042.02a.75.75 0 11-.671-1.34l.041-.022zM12 9a.75.75 0 100-1.5.75.75 0 000 1.5z" clipRule="evenodd" />
                 </svg>
               </button>
             </span>
@@ -148,18 +203,29 @@ function injectHearts(
   return process(content);
 }
 
+const SUGGESTED_PROMPTS = [
+  "Plan a weekend road trip from my city",
+  "Find the best restaurants near a landmark",
+  "Plan a 3-day family trip with kids",
+  "Suggest a spontaneous day trip nearby",
+];
+
 export default function ChatClient({
   userEmail,
+  userImage,
   conversationId: initialConvId,
   autoPrompt,
 }: {
   userEmail: string;
+  userImage?: string;
   conversationId?: string;
   autoPrompt?: string;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [thinkingPhrase, setThinkingPhrase] = useState(0);
+  const [modalPlace, setModalPlace] = useState<PlaceLink | null>(null);
   const [convId, setConvId] = useState<string | undefined>(initialConvId);
   const [title, setTitle] = useState("New Conversation");
   const [collapsedMaps, setCollapsedMaps] = useState<Set<number>>(new Set());
@@ -208,7 +274,7 @@ export default function ChatClient({
     if (!initialConvId) {
       setMessages([{
         role: "assistant",
-        content: "Hey! I'm your travel planning assistant ✈️ Where are you thinking of heading?",
+        content: getThemeGreeting(),
       }]);
       setTitle("New Conversation");
       setPersona(null);
@@ -241,7 +307,7 @@ export default function ChatClient({
         setMessages(
           data.messages.length > 0
             ? data.messages
-            : [{ role: "assistant" as const, content: "Hey! I'm your travel planning assistant ✈️ Where are you thinking of heading?" }]
+            : [{ role: "assistant" as const, content: getThemeGreeting() }]
         );
         // Load persona for this trip
         const p = data.persona as TripPersona;
@@ -257,6 +323,15 @@ export default function ChatClient({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    if (!loading) return;
+    setThinkingPhrase(Math.floor(Math.random() * THINKING_PHRASES.length));
+    const interval = setInterval(() => {
+      setThinkingPhrase((p) => (p + 1) % THINKING_PHRASES.length);
+    }, 2200);
+    return () => clearInterval(interval);
+  }, [loading]);
 
   // Get user's current location on mount for new conversations
   useEffect(() => {
@@ -527,9 +602,13 @@ export default function ChatClient({
           className="border-b border-black/10 dark:bg-gray-900 dark:border-gray-700 px-3 sm:px-6 py-3 flex items-center justify-between shrink-0 gap-2"
           style={{ backgroundColor: "var(--t-topbar-bg)" }}
         >
-          <div>
-            <h1 className="text-sm font-semibold text-[var(--t-primary-text)] dark:text-gray-200">{title}</h1>
-            <p className="text-xs text-gray-500 dark:text-gray-500">Road trip assistant · AI Powered</p>
+          <div className="flex items-center gap-2 min-w-0">
+            <h1 className="text-sm font-semibold text-[var(--t-primary-text)] dark:text-gray-200 truncate">{title}</h1>
+            {persona?.travelling_as && (
+              <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full font-semibold capitalize" style={{ background: "var(--t-primary-light)", color: "var(--t-primary)" }}>
+                {persona.travelling_as}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -571,16 +650,49 @@ export default function ChatClient({
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-6 space-y-6" style={{ background: "var(--t-chat-bg, var(--t-bg))" }}>
+
+          {/* Suggested prompts — only show when just the greeting is visible */}
+          {messages.length === 1 && messages[0].role === "assistant" && !loading && (
+            <div className="flex flex-wrap gap-2 justify-center mt-2 mb-2">
+              {SUGGESTED_PROMPTS.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => { setInput(p); committedInputRef.current = p; }}
+                  className="text-xs px-3 py-1.5 rounded-full border border-[var(--t-primary)] text-[var(--t-primary)] hover:bg-[var(--t-primary-light)] transition-colors font-medium"
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          )}
+
           {messages.map((msg, i) => (
-            <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className="max-w-[90%] sm:max-w-[75%]">
+            <div key={i} className={`flex items-end gap-2.5 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+
+              {/* AI avatar */}
+              {msg.role === "assistant" && (
+                <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center shadow-sm mb-0.5" style={{ background: "var(--t-primary)" }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-white">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.4" opacity="0.4"/>
+                    <path d="M12 3.5L13.6 10.8L12 9.8L10.4 10.8Z" fill="currentColor"/>
+                    <path d="M12 20.5L10.4 13.2L12 14.2L13.6 13.2Z" fill="currentColor" opacity="0.4"/>
+                    <circle cx="12" cy="12" r="1.8" fill="currentColor"/>
+                  </svg>
+                </div>
+              )}
+
+              <div className="max-w-[88%] sm:max-w-[78%]">
                 <div
-                  className={`px-4 py-3 rounded-2xl text-sm ${
+                  className={`px-4 py-3 text-sm ${
                     msg.role === "user"
-                      ? "bg-[var(--t-bubble-user)] text-white rounded-br-sm"
-                      : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 shadow-sm rounded-bl-sm"
+                      ? "bg-[var(--t-bubble-user)] text-white rounded-2xl rounded-br-sm shadow-md"
+                      : "text-gray-800 dark:text-gray-100 rounded-2xl rounded-bl-sm shadow-sm"
                   }`}
+                  style={msg.role === "assistant" ? {
+                    background: "var(--t-ai-bubble, white)",
+                    border: "1px solid var(--t-primary-light, #e5e7eb)",
+                  } : {}}
                 >
                   {msg.role === "assistant" ? (
                     <>
@@ -618,7 +730,7 @@ export default function ChatClient({
                         const likedInMsg = places.filter((p) => likedPlaceNames.has(p.name));
                         const alreadyRefined = refinedMsgIds.has(i);
                         const H = (children: React.ReactNode) =>
-                          injectHearts(children, places, likedPlaceNames, handleLikePlace);
+                          injectHearts(children, places, likedPlaceNames, setModalPlace, handleLikePlace);
                         return (
                           <>
                             <ReactMarkdown
@@ -676,57 +788,78 @@ export default function ChatClient({
                     <span className="whitespace-pre-wrap">{msg.content}</span>
                   )}
                 </div>
-
-                {msg.role === "assistant" && msg.content && !loading && (
-                  <div className="flex items-center gap-2 mt-1.5 pl-1">
-                    <button
-                      onClick={() => handleSaveTrip(i)}
-                      disabled={savedMsgIds.has(i) || savingIdx === i}
-                      className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${
-                        savedMsgIds.has(i)
-                          ? "bg-[var(--t-primary-light)] text-[var(--t-primary)]"
-                          : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-[var(--t-primary-light)] hover:text-[var(--t-primary)]"
-                      }`}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill={savedMsgIds.has(i) ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                      </svg>
-                      {savingIdx === i ? "Saving…" : savedMsgIds.has(i) ? "Saved!" : "Save trip"}
-                    </button>
-                  </div>
-                )}
               </div>
+
+              {/* User avatar */}
+              {msg.role === "user" && (
+                <div className="shrink-0 w-8 h-8 rounded-full overflow-hidden shadow-sm mb-0.5">
+                  {userImage ? (
+                    <img src={userImage} alt="You" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-white text-xs font-bold" style={{ background: "var(--t-primary)" }}>
+                      {userEmail[0]?.toUpperCase()}
+                    </div>
+                  )}
+                </div>
+              )}
+
             </div>
           ))}
 
           {loading && (
-            <div className="flex justify-start">
-              <div className="bg-white dark:bg-gray-800 px-4 py-3 rounded-2xl rounded-bl-sm shadow-sm">
-                <span className="flex gap-1">
-                  {[0, 150, 300].map((d) => (
-                    <span key={d} className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />
-                  ))}
+            <div className="flex items-end gap-2.5 justify-start">
+              <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center shadow-sm" style={{ background: "var(--t-primary)" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-white">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.4" opacity="0.4"/>
+                  <path d="M12 3.5L13.6 10.8L12 9.8L10.4 10.8Z" fill="currentColor"/>
+                  <circle cx="12" cy="12" r="1.8" fill="currentColor"/>
+                </svg>
+              </div>
+              <div className="px-4 py-3 rounded-2xl rounded-bl-sm shadow-sm flex items-center gap-3 min-w-[220px]"
+                style={{ background: "var(--t-ai-bubble, white)", border: "1px solid var(--t-primary-light, #e5e7eb)" }}
+              >
+                {/* Spinning compass */}
+                <svg
+                  width="22" height="22" viewBox="0 0 24 24" fill="none"
+                  className="shrink-0 text-[var(--t-primary)]"
+                  style={{ animation: "spin 1.8s linear infinite" }}
+                >
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.4" opacity="0.3" />
+                  <path d="M12 3.5L13.6 10.8L12 9.8L10.4 10.8Z" fill="currentColor" />
+                  <path d="M12 20.5L10.4 13.2L12 14.2L13.6 13.2Z" fill="currentColor" opacity="0.35" />
+                  <circle cx="12" cy="12" r="1.8" fill="currentColor" />
+                </svg>
+                {/* Cycling phrase */}
+                <span
+                  key={thinkingPhrase}
+                  className="text-sm text-gray-500 dark:text-gray-400"
+                  style={{ animation: "fadeIn 0.4s ease" }}
+                >
+                  {THINKING_PHRASES[thinkingPhrase]}
                 </span>
               </div>
             </div>
           )}
+
           <div ref={bottomRef} />
         </div>
 
         {/* Input */}
-        <div
-          className="border-t border-black/10 dark:bg-gray-900 dark:border-gray-700 px-3 sm:px-6 py-3 sm:py-4 shrink-0 safe-bottom"
-          style={{ backgroundColor: "var(--t-topbar-bg)" }}
-        >
-          <div className="flex gap-2 items-end">
+        <div className="shrink-0 px-3 sm:px-6 py-3 sm:py-4 safe-bottom" style={{ background: "var(--t-chat-bg, var(--t-bg))" }}>
+          <div
+            className="flex gap-2 items-end rounded-2xl px-3 py-2 shadow-lg"
+            style={{
+              background: "var(--t-topbar-bg)",
+              border: "1px solid var(--t-primary-light, #e5e7eb)",
+              boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
+            }}
+          >
             <MicButton state={voice.state} onToggle={voice.toggle} />
             <textarea
-              className={`flex-1 resize-none border rounded-xl px-4 py-2.5 text-sm text-black dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[var(--t-ring)] max-h-32 transition-colors ${
-                voice.state === "listening"
-                  ? "border-red-300 dark:border-red-700 bg-red-50 dark:bg-gray-800"
-                  : "border-gray-300 dark:border-gray-600"
+              className={`flex-1 resize-none bg-transparent px-2 py-1.5 text-sm text-black dark:text-white placeholder-gray-400 focus:outline-none max-h-32 transition-colors ${
+                voice.state === "listening" ? "text-red-500 dark:text-red-400" : ""
               }`}
-              placeholder={voice.state === "listening" ? "Listening… speak your message" : "Ask about your trip…"}
+              placeholder={voice.state === "listening" ? "Listening… speak your message" : "Where would you like to go?"}
               rows={1}
               value={input}
               onChange={(e) => { committedInputRef.current = e.target.value; setInput(e.target.value); }}
@@ -737,13 +870,25 @@ export default function ChatClient({
             <button
               onClick={sendMessage}
               disabled={!input.trim() || loading}
-              className="bg-[var(--t-primary)] hover:bg-[var(--t-primary-hover)] disabled:opacity-40 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
+              className="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl text-white transition-all disabled:opacity-30 hover:scale-105"
+              style={{ background: "var(--t-primary)" }}
             >
-              Send
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+              </svg>
             </button>
           </div>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">Enter to send · Shift+Enter for new line</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5 text-center">Enter to send · Shift+Enter for new line</p>
         </div>
+
+        {/* Place info modal */}
+        {modalPlace && (
+          <PlaceModal
+            name={modalPlace.name}
+            query={modalPlace.query || modalPlace.name}
+            onClose={() => setModalPlace(null)}
+          />
+        )}
 
         {/* Persona Sheet overlay */}
         {showPersonaSheet && convId && (

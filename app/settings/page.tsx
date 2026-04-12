@@ -11,7 +11,7 @@ export default async function SettingsPage() {
   const userEmail = user.email ?? "";
 
   return (
-    <AppLayout userEmail={userEmail}>
+    <AppLayout userEmail={userEmail} userImage={user.image ?? ""} userName={user.name ?? ""}>
       <SettingsClient
         userEmail={userEmail}
         userName={user.name ?? ""}

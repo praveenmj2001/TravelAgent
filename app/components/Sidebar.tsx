@@ -9,12 +9,12 @@ import {
   PERSONA_CATEGORIES,
   MEETUP_DISPLAY_CATEGORIES,
   SPONTANEOUS_DISPLAY_CATEGORIES,
-  MEET_TIME,
   lookupEmoji,
   lookupLabel,
 } from "@/app/chat/personaConfig";
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL;
+const MAX_HISTORY = 7;
 
 interface Conversation {
   id: string;
@@ -22,13 +22,51 @@ interface Conversation {
   updated_at: string;
 }
 
+interface ConversationGroup {
+  label: string;
+  items: Conversation[];
+}
+
+function groupByDate(convs: Conversation[]): ConversationGroup[] {
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterdayStart = new Date(todayStart);
+  yesterdayStart.setDate(todayStart.getDate() - 1);
+  const weekStart = new Date(todayStart);
+  weekStart.setDate(todayStart.getDate() - 7);
+
+  const buckets: Record<string, Conversation[]> = {
+    Today: [],
+    Yesterday: [],
+    "This Week": [],
+    Older: [],
+  };
+
+  for (const c of convs) {
+    const d = new Date(c.updated_at);
+    const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    if (day >= todayStart) buckets["Today"].push(c);
+    else if (day >= yesterdayStart) buckets["Yesterday"].push(c);
+    else if (day >= weekStart) buckets["This Week"].push(c);
+    else buckets["Older"].push(c);
+  }
+
+  return (["Today", "Yesterday", "This Week", "Older"] as const)
+    .map((label) => ({ label, items: buckets[label] }))
+    .filter((g) => g.items.length > 0);
+}
+
 export default function Sidebar({
   userEmail,
+  userName,
+  userImage,
   onClose,
   collapsed = false,
   onToggleCollapsed,
 }: {
   userEmail: string;
+  userName?: string;
+  userImage?: string;
   onClose?: () => void;
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
@@ -42,6 +80,8 @@ export default function Sidebar({
   const [renameValue, setRenameValue] = useState("");
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showAllHistory, setShowAllHistory] = useState(false);
 
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -77,7 +117,6 @@ export default function Sidebar({
     return () => window.removeEventListener("conversation-updated", fetchConversations);
   }, [fetchConversations]);
 
-  // Fetch persona when active conversation changes
   useEffect(() => {
     if (activeId) {
       fetchPersona(activeId);
@@ -87,7 +126,6 @@ export default function Sidebar({
     }
   }, [activeId, fetchPersona]);
 
-  // Re-fetch persona when PersonaSheet completes
   useEffect(() => {
     function onPersonaUpdated() {
       if (activeId) fetchPersona(activeId);
@@ -95,6 +133,11 @@ export default function Sidebar({
     window.addEventListener("persona-updated", onPersonaUpdated);
     return () => window.removeEventListener("persona-updated", onPersonaUpdated);
   }, [activeId, fetchPersona]);
+
+  // Reset show-all when search changes
+  useEffect(() => {
+    setShowAllHistory(false);
+  }, [searchQuery]);
 
   function toggleDark() {
     const next = !dark;
@@ -164,6 +207,54 @@ export default function Sidebar({
     }
   }
 
+  // Derived: filtered + grouped conversations
+  const filtered = conversations.filter((c) =>
+    c.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const showAll = searchQuery.length > 0 || showAllHistory;
+  const displayed = showAll ? filtered : filtered.slice(0, MAX_HISTORY);
+  const hasMore = !showAll && filtered.length > MAX_HISTORY;
+  const groups = groupByDate(displayed);
+
+  // Persona summary chips (top 2-3 key fields)
+  function getPersonaSummaryChips(): { emoji: string; label: string }[] {
+    if (!persona) return [];
+    const chips: { emoji: string; label: string }[] = [];
+
+    if (persona.travelling_as) {
+      const allOptions = [...PERSONA_CATEGORIES, ...SPONTANEOUS_DISPLAY_CATEGORIES, ...MEETUP_DISPLAY_CATEGORIES];
+      const travellingAsOptions = allOptions.find((c) => c.key === "travelling_as")?.options ?? [];
+      const e = lookupEmoji(travellingAsOptions as any, persona.travelling_as);
+      const l = lookupLabel(travellingAsOptions as any, persona.travelling_as);
+      if (l) chips.push({ emoji: e, label: l });
+    }
+
+    if (persona.travel_style) {
+      const cat = PERSONA_CATEGORIES.find((c) => c.key === "travel_style");
+      const vals = persona.travel_style.split(",").filter(Boolean).slice(0, 1);
+      for (const v of vals) {
+        const e = lookupEmoji(cat?.options as any, v);
+        const l = lookupLabel(cat?.options as any, v);
+        if (l) chips.push({ emoji: e, label: l });
+      }
+    }
+
+    if (persona.trip_length && chips.length < 3) {
+      const cat = PERSONA_CATEGORIES.find((c) => c.key === "trip_length");
+      const e = lookupEmoji(cat?.options as any, persona.trip_length);
+      const l = lookupLabel(cat?.options as any, persona.trip_length);
+      if (l) chips.push({ emoji: e, label: l });
+    }
+
+    return chips.slice(0, 3);
+  }
+
+  const personaChips = getPersonaSummaryChips();
+
+  // User display helpers
+  const displayName = userName || userEmail.split("@")[0];
+  const initials = displayName.slice(0, 1).toUpperCase();
+
   return (
     <div
       className={`flex flex-col dark:bg-gray-900 border-r border-black/10 dark:border-gray-700 h-screen transition-all duration-300 ${
@@ -210,7 +301,7 @@ export default function Sidebar({
         </button>
       </div>
 
-      {/* Scrollable middle: history + persona */}
+      {/* Scrollable middle: nav + history + persona */}
       <div className="flex-1 overflow-y-auto">
         <nav className="flex flex-col gap-0.5 px-2 py-1">
           {/* Main nav links */}
@@ -246,6 +337,7 @@ export default function Sidebar({
           {/* Conversation history */}
           {!collapsed && conversations.length > 0 && (
             <div className="mt-1">
+              {/* Section header */}
               <button
                 onClick={() => setHistoryOpen((v) => !v)}
                 className="w-full flex items-center justify-between px-3 pt-3 pb-1 group"
@@ -261,59 +353,106 @@ export default function Sidebar({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
+
               {historyOpen && (
-                <div className="overflow-y-auto flex flex-col gap-0.5" style={{ maxHeight: "calc(7 * 2.5rem)" }}>
-                  {conversations.map((c) => (
-                    <div key={c.id} className="shrink-0">
-                      {renamingId === c.id ? (
-                        <div className="flex items-center gap-1 px-2 py-1" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            autoFocus
-                            value={renameValue}
-                            onChange={(e) => setRenameValue(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") submitRename(c.id);
-                              if (e.key === "Escape") setRenamingId(null);
-                            }}
-                            onBlur={() => submitRename(c.id)}
-                            className="flex-1 text-xs px-2 py-1 rounded-lg border border-[var(--t-primary)] outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                          />
-                        </div>
-                      ) : (
-                        <Link
-                          href={`/chat?id=${c.id}`}
-                          className={`group flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
-                            activeId === c.id
-                              ? "bg-[var(--t-sidebar-active)] text-[var(--t-sidebar-text)]"
-                              : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-                          }`}
-                        >
-                          <span className="truncate flex-1">{c.title}</span>
-                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 shrink-0 ml-1">
-                            <button
-                              onClick={(e) => startRename(e, c.id, c.title)}
-                              className="p-0.5 hover:text-[var(--t-primary)] transition-colors"
-                              title="Rename"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={(e) => handleDelete(e, c.id)}
-                              className="p-0.5 hover:text-red-500 transition-colors"
-                              title="Delete"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </div>
-                        </Link>
+                <>
+                  {/* Search bar */}
+                  <div className="px-2 pb-1.5">
+                    <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-black/5 dark:bg-white/5">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      <input
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search chats…"
+                        className="flex-1 bg-transparent text-xs text-gray-700 dark:text-gray-300 placeholder-gray-400 outline-none min-w-0"
+                      />
+                      {searchQuery && (
+                        <button onClick={() => setSearchQuery("")} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
                       )}
                     </div>
-                  ))}
-                </div>
+                  </div>
+
+                  {/* Grouped results */}
+                  {groups.length === 0 ? (
+                    <p className="text-xs text-gray-400 dark:text-gray-500 px-3 py-2 italic">No chats found.</p>
+                  ) : (
+                    <div className="flex flex-col">
+                      {groups.map((group) => (
+                        <div key={group.label}>
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-widest px-3 pt-2 pb-0.5 font-semibold">
+                            {group.label}
+                          </p>
+                          {group.items.map((c) => (
+                            <div key={c.id} className="shrink-0 px-1">
+                              {renamingId === c.id ? (
+                                <div className="flex items-center gap-1 px-2 py-1" onClick={(e) => e.stopPropagation()}>
+                                  <input
+                                    autoFocus
+                                    value={renameValue}
+                                    onChange={(e) => setRenameValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") submitRename(c.id);
+                                      if (e.key === "Escape") setRenamingId(null);
+                                    }}
+                                    onBlur={() => submitRename(c.id)}
+                                    className="flex-1 text-xs px-2 py-1 rounded-lg border border-[var(--t-primary)] outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                  />
+                                </div>
+                              ) : (
+                                <Link
+                                  href={`/chat?id=${c.id}`}
+                                  className={`group flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all border-l-2 ${
+                                    activeId === c.id
+                                      ? "bg-[var(--t-sidebar-active)] text-[var(--t-sidebar-text)] border-[var(--t-primary)]"
+                                      : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-transparent"
+                                  }`}
+                                >
+                                  <span className="truncate flex-1 text-xs">{c.title}</span>
+                                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 shrink-0 ml-1">
+                                    <button
+                                      onClick={(e) => startRename(e, c.id, c.title)}
+                                      className="p-0.5 hover:text-[var(--t-primary)] transition-colors"
+                                      title="Rename"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                      </svg>
+                                    </button>
+                                    <button
+                                      onClick={(e) => handleDelete(e, c.id)}
+                                      className="p-0.5 hover:text-red-500 transition-colors"
+                                      title="Delete"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                </Link>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Show more / Show less */}
+                  {(hasMore || showAllHistory) && !searchQuery && (
+                    <button
+                      onClick={() => setShowAllHistory((v) => !v)}
+                      className="w-full text-left px-4 py-1.5 text-xs text-[var(--t-primary)] hover:underline transition-colors"
+                    >
+                      {showAllHistory ? "Show less" : `Show ${filtered.length - MAX_HISTORY} more…`}
+                    </button>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -338,6 +477,25 @@ export default function Sidebar({
                 </svg>
               </button>
 
+              {/* Compact summary chips — shown when section is collapsed */}
+              {!personaOpen && personaChips.length > 0 && (
+                <div className="flex flex-wrap gap-1 px-3 pb-2 pt-1">
+                  {personaChips.map((chip, i) => (
+                    <span
+                      key={i}
+                      className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                      style={{ background: "var(--t-primary-light)", color: "var(--t-primary)" }}
+                    >
+                      {chip.emoji} {chip.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {!personaOpen && persona === null && (
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 px-3 py-1 italic">No persona set.</p>
+              )}
+
               {personaOpen && (
                 <div className="mt-1 flex flex-col gap-0.5">
                   {persona === null && (
@@ -347,8 +505,7 @@ export default function Sidebar({
                   )}
 
                   {persona?.travelling_as === "spontaneous"
-                    ? /* ── Spontaneous drive view ── */
-                      SPONTANEOUS_DISPLAY_CATEGORIES.map((cat) => {
+                    ? SPONTANEOUS_DISPLAY_CATEGORIES.map((cat) => {
                         const isExpanded = expandedKey === cat.key;
                         const isSaving = savingKey === cat.key;
                         const rawVal = persona?.[cat.key] ?? "";
@@ -398,8 +555,7 @@ export default function Sidebar({
                         );
                       })
                     : persona?.travelling_as === "meetup"
-                    ? /* ── Meetup view ── */
-                      MEETUP_DISPLAY_CATEGORIES.map((cat) => {
+                    ? MEETUP_DISPLAY_CATEGORIES.map((cat) => {
                         const isExpanded = expandedKey === cat.key;
                         const isSaving = savingKey === cat.key;
                         const rawVal = persona?.[cat.key] ?? "";
@@ -480,8 +636,7 @@ export default function Sidebar({
                           </div>
                         );
                       })
-                    : /* ── Standard trip view ── */
-                      PERSONA_CATEGORIES.map((cat) => {
+                    : PERSONA_CATEGORIES.map((cat) => {
                         const vals = getValues(cat.key);
                         const isExpanded = expandedKey === cat.key;
                         const isSaving = savingKey === cat.key;
@@ -560,25 +715,52 @@ export default function Sidebar({
         </nav>
       </div>
 
-      {/* Bottom: settings + dark mode */}
+      {/* Bottom: user profile card + dark mode */}
       <div className="shrink-0 border-t border-black/10 dark:border-gray-700">
-        <div className="px-2 pt-2 pb-1">
+        {/* User profile card */}
+        <div className="px-2 pt-2">
           <Link
             href="/settings"
-            className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-colors ${
-              pathname === "/settings"
-                ? "bg-[var(--t-sidebar-active)] text-[var(--t-sidebar-text)]"
-                : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-            } ${collapsed ? "justify-center" : ""}`}
-            title="Profile & Trips"
+            className={`flex items-center gap-2.5 w-full px-2 py-2 rounded-xl transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 ${collapsed ? "justify-center" : ""}`}
+            title={collapsed ? displayName : undefined}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            {!collapsed && <span>Profile & Trips</span>}
+            {/* Avatar */}
+            <div className="shrink-0">
+              {userImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={userImage}
+                  alt={displayName}
+                  className="w-7 h-7 rounded-full object-cover ring-2 ring-[var(--t-primary-light)]"
+                />
+              ) : (
+                <div
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                  style={{ background: "var(--t-primary)" }}
+                >
+                  {initials}
+                </div>
+              )}
+            </div>
+            {/* Name + email */}
+            {!collapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-gray-800 dark:text-gray-100 truncate leading-tight">{displayName}</p>
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate leading-tight">{userEmail}</p>
+              </div>
+            )}
+            {/* Settings cog */}
+            {!collapsed && (
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            )}
           </Link>
         </div>
-        <div className="p-3">
+
+        {/* Dark mode toggle */}
+        <div className="p-2 pt-1">
           <button
             onClick={toggleDark}
             className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${collapsed ? "justify-center" : ""}`}
