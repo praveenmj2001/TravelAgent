@@ -235,6 +235,7 @@ export default function ChatClient({
   const [exportCopied, setExportCopied] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareQuery, setShareQuery] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<string | null>(null);
@@ -629,6 +630,7 @@ export default function ChatClient({
       const data = await res.json();
       const nextUrl = data.share_url as string;
       setShareUrl(nextUrl);
+      setShareQuery(query);
       setShowShareModal(true);
     } catch (err) {
       setShareError(err instanceof Error ? err.message : "Failed to create share link. Please try again.");
@@ -707,16 +709,24 @@ export default function ChatClient({
           </div>
         </div>
         {shareUrl && (
-          <div className="px-3 sm:px-6 py-2 border-b border-black/10 dark:border-gray-700 text-xs bg-white/70 dark:bg-gray-900/70">
-            <span className="text-gray-500 dark:text-gray-400 mr-2">Share link:</span>
-            <a
-              href={shareUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[var(--t-primary)] underline break-all"
-            >
-              {shareUrl}
-            </a>
+          <div className="px-3 sm:px-6 py-2 border-b border-black/10 dark:border-gray-700 text-xs bg-white/70 dark:bg-gray-900/70 space-y-1.5">
+            {shareQuery && (
+              <p className="text-gray-600 dark:text-gray-300">
+                <span className="font-medium mr-1">Sharing:</span>
+                <span className="break-words">{shareQuery}</span>
+              </p>
+            )}
+            <p>
+              <span className="text-gray-500 dark:text-gray-400 mr-2">Link:</span>
+              <a
+                href={shareUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[var(--t-primary)] underline break-all"
+              >
+                {shareUrl}
+              </a>
+            </p>
           </div>
         )}
         {shareError && (
