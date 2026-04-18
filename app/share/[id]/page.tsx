@@ -21,13 +21,26 @@ export default async function SharePage({
 }) {
   const { id } = await params;
 
-  const gistRes = await fetch(`${BACKEND}/share/${encodeURIComponent(id)}`, { cache: "no-store" });
-  if (!gistRes.ok) {
+  let gistRes: Response;
+  try {
+    gistRes = await fetch(`${BACKEND}/share/${encodeURIComponent(id)}`, { cache: "no-store" });
+  } catch {
     return (
       <main className="min-h-screen bg-gray-50 text-gray-900 p-6 sm:p-10">
         <div className="max-w-3xl mx-auto">
           <h1 className="text-2xl font-bold mb-2">Shared Trip</h1>
-          <p className="text-sm text-gray-600">Share not found or unavailable.</p>
+          <p className="text-sm text-gray-600">Unable to load this share right now.</p>
+        </div>
+      </main>
+    );
+  }
+  if (!gistRes.ok) {
+    const detail = gistRes.status === 404 ? "Share not found." : "Unable to load this share right now.";
+    return (
+      <main className="min-h-screen bg-gray-50 text-gray-900 p-6 sm:p-10">
+        <div className="max-w-3xl mx-auto">
+          <h1 className="text-2xl font-bold mb-2">Shared Trip</h1>
+          <p className="text-sm text-gray-600">{detail}</p>
         </div>
       </main>
     );

@@ -595,14 +595,14 @@ export default function ChatClient({
     setTimeout(() => { w.print(); }, 300);
   }
 
-  function getFirstUserQuery() {
+  function getFirstUserMessage() {
     const firstUserMessage = messages.find((m) => m.role === "user" && m.content.trim());
     return firstUserMessage?.content.trim() ?? "";
   }
 
   async function handleShare() {
     if (!convId || shareLoading) return;
-    const query = getFirstUserQuery();
+    const query = getFirstUserMessage();
     if (!query) return;
     setShareError(null);
     setShareLoading(true);
