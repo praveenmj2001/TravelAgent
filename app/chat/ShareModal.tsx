@@ -133,6 +133,7 @@ export default function ShareModal({ shareUrl, onClose }: ShareModalProps) {
                 href={option.href}
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label={`Share via ${option.name}`}
                 className="flex flex-col items-center gap-2 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               >
                 <span className="w-11 h-11 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
