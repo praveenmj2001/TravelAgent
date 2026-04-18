@@ -597,7 +597,8 @@ export default function ChatClient({
 
   function getFirstUserMessage() {
     const firstUserMessage = messages.find((m) => m.role === "user" && m.content.trim());
-    return firstUserMessage?.content.trim() ?? "";
+    if (!firstUserMessage) return "";
+    return firstUserMessage.content.trim();
   }
 
   async function handleShare() {

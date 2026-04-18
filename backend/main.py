@@ -320,8 +320,12 @@ def mask_email(email: str) -> str:
     if "@" not in email:
         return "***"
     local, domain = email.split("@", 1)
-    if not local or not domain:
+    if not local and not domain:
+        return "***"
+    if not local:
         return f"***@{domain}"
+    if not domain:
+        return "***"
     if len(local) == 1:
         return f"*@{domain}"
     if len(local) == 2:
@@ -744,6 +748,7 @@ def get_share_gist(share_id: str, db: Session = Depends(get_db)):
         "conversation_id": gist.conversation_id,
         "user_email": mask_email(gist.user_email),
         "created_at": gist.created_at,
+        "conversation_available": conv is not None,
         "messages": [{"role": m.role, "content": m.content} for m in (conv.messages if conv else [])],
     }
 
