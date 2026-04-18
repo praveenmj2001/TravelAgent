@@ -234,7 +234,6 @@ export default function ChatClient({
   const [savingIdx, setSavingIdx] = useState<number | null>(null);
   const [exportCopied, setExportCopied] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
-  const [shareCopied, setShareCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -631,11 +630,6 @@ export default function ChatClient({
       const nextUrl = data.share_url as string;
       setShareUrl(nextUrl);
       setShowShareModal(true);
-      try {
-        await navigator.clipboard.writeText(nextUrl);
-        setShareCopied(true);
-        setTimeout(() => setShareCopied(false), 2000);
-      } catch {}
     } catch (err) {
       setShareError(err instanceof Error ? err.message : "Failed to create share link. Please try again.");
     }
@@ -692,7 +686,7 @@ export default function ChatClient({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342A3 3 0 014.5 9.158l3.536-3.536a3 3 0 014.243 4.243L10.5 11.644m2.999-1.287a3 3 0 014.184 4.184l-3.536 3.536a3 3 0 01-4.243-4.243L13.5 12.356" />
               </svg>
               <span className="hidden sm:inline">
-                {shareLoading ? "Sharing..." : shareCopied ? "Link copied!" : "Share"}
+                {shareLoading ? "Sharing..." : "Share"}
               </span>
             </button>
             {/* DEV: system prompt debug toggle */}

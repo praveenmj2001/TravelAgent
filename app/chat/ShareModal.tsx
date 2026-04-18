@@ -11,15 +11,22 @@ interface ShareOption {
   name: string;
   icon: string;
   href: string;
+  note?: string;
 }
 
 export default function ShareModal({ shareUrl, onClose }: ShareModalProps) {
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(shareUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopyError(null);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopyError("Unable to copy automatically. Please copy the link manually.");
+    }
   }
 
   const encoded = encodeURIComponent(shareUrl);
@@ -31,7 +38,7 @@ export default function ShareModal({ shareUrl, onClose }: ShareModalProps) {
     { name: "Gmail", icon: "🔴", href: `https://mail.google.com/mail/?body=${encoded}` },
     { name: "LinkedIn", icon: "🔹", href: `https://www.linkedin.com/sharing/share-offsite/?url=${encoded}` },
     { name: "SMS", icon: "💬", href: `sms:?body=${encoded}` },
-    { name: "Instagram", icon: "🟣", href: "https://www.instagram.com/" },
+    { name: "Instagram", icon: "🟣", href: "https://www.instagram.com/", note: "No direct link share" },
   ];
 
   return (
@@ -65,6 +72,9 @@ export default function ShareModal({ shareUrl, onClose }: ShareModalProps) {
                   {option.icon}
                 </span>
                 <span className="text-[11px] leading-tight text-center text-gray-600 dark:text-gray-300">{option.name}</span>
+                {option.note && (
+                  <span className="text-[10px] leading-tight text-center text-gray-400 dark:text-gray-500">{option.note}</span>
+                )}
               </a>
             ))}
           </div>
@@ -72,6 +82,9 @@ export default function ShareModal({ shareUrl, onClose }: ShareModalProps) {
 
         <div className="shrink-0 border-t border-gray-200 dark:border-gray-700 px-5 py-4 space-y-3">
           <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{shareUrl}</div>
+          {copyError && (
+            <p className="text-xs text-red-600 dark:text-red-400">{copyError}</p>
+          )}
           <button
             onClick={handleCopy}
             className="w-full rounded-xl py-2.5 text-sm font-semibold text-white"
