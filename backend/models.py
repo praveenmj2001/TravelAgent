@@ -86,3 +86,13 @@ class LikedPlace(Base):
     category = Column(String, nullable=True)   # restaurant | hotel | activity | viewpoint | etc
     rating = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ShareGist(Base):
+    __tablename__ = "share_gists"
+
+    id = Column(String, primary_key=True)
+    conversation_id = Column(String, nullable=False)
+    user_email = Column(String, nullable=False, index=True)
+    query = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
