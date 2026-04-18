@@ -143,6 +143,8 @@ TravelPlanner/
 | POST | `/saved-trips` | Save a trip |
 | GET | `/saved-trips?user_email=` | List saved trips |
 | DELETE | `/saved-trips/{id}` | Delete saved trip |
+| POST | `/share` | Create a shareable query gist link |
+| GET | `/share/{share_id}` | Retrieve a public share gist |
 | GET | `/profile?user_email=` | Get user profile |
 | POST | `/profile` | Upsert user profile |
 | GET | `/liked-places?user_email=` | List liked places |

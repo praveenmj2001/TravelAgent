@@ -7,11 +7,12 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from dotenv import load_dotenv
 from database import engine, get_db, SessionLocal
-from models import Base, Conversation, Message, SavedTrip, UserProfile, LikedPlace
+from models import Base, Conversation, Message, SavedTrip, UserProfile, LikedPlace, ShareGist
 from datetime import datetime, timezone
 import anthropic
 import json
 import os
+import uuid
 
 load_dotenv()
 
@@ -49,6 +50,15 @@ def _migrate_db():
                 query VARCHAR NOT NULL,
                 category VARCHAR,
                 rating VARCHAR,
+                created_at DATETIME
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS share_gists (
+                id VARCHAR PRIMARY KEY,
+                conversation_id VARCHAR NOT NULL,
+                user_email VARCHAR NOT NULL,
+                query VARCHAR NOT NULL,
                 created_at DATETIME
             )
         """))
@@ -238,6 +248,12 @@ class LikePlaceRequest(BaseModel):
     query: str
     category: str | None = None
     rating: str | None = None
+
+
+class CreateShareRequest(BaseModel):
+    conversation_id: str
+    user_email: str
+    query: str
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -674,6 +690,47 @@ def delete_conversation(conversation_id: str, db: Session = Depends(get_db)):
     db.delete(conv)
     db.commit()
     return {"ok": True}
+
+
+# ── Share Gists ───────────────────────────────────────────────────────────────
+
+@app.post("/share")
+def create_share_gist(body: CreateShareRequest, db: Session = Depends(get_db)):
+    conversation_id = (body.conversation_id or "").strip()
+    user_email = (body.user_email or "").strip()
+    query = (body.query or "").strip()
+    if not conversation_id or not user_email or not query:
+        raise HTTPException(status_code=400, detail="conversation_id, user_email, and query are required")
+
+    share_id = str(uuid.uuid4())
+    gist = ShareGist(
+        id=share_id,
+        conversation_id=conversation_id,
+        user_email=user_email,
+        query=query,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(gist)
+    db.commit()
+    db.refresh(gist)
+
+    return {
+        "share_id": gist.id,
+        "share_url": f"{FRONTEND_URL}/share/{gist.id}",
+    }
+
+
+@app.get("/share/{share_id}")
+def get_share_gist(share_id: str, db: Session = Depends(get_db)):
+    gist = db.query(ShareGist).filter(ShareGist.id == share_id).first()
+    if not gist:
+        raise HTTPException(status_code=404, detail="Share not found")
+    return {
+        "query": gist.query,
+        "conversation_id": gist.conversation_id,
+        "user_email": gist.user_email,
+        "created_at": gist.created_at,
+    }
 
 
 # ── Saved Trips ───────────────────────────────────────────────────────────────

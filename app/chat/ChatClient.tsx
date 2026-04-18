@@ -232,6 +232,9 @@ export default function ChatClient({
   const [savedMsgIds, setSavedMsgIds] = useState<Set<number>>(new Set());
   const [savingIdx, setSavingIdx] = useState<number | null>(null);
   const [exportCopied, setExportCopied] = useState(false);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<string | null>(null);
   const [likedPlaceNames, setLikedPlaceNames] = useState<Set<string>>(new Set());
   const [likedPlaceIds, setLikedPlaceIds] = useState<Record<string, string>>({});
@@ -591,6 +594,37 @@ export default function ChatClient({
     setTimeout(() => { w.print(); }, 300);
   }
 
+  function getShareQuery() {
+    const firstUserMessage = messages.find((m) => m.role === "user" && m.content.trim());
+    return firstUserMessage?.content.trim() ?? "";
+  }
+
+  async function handleShare() {
+    if (!convId || shareLoading) return;
+    const query = getShareQuery();
+    if (!query) return;
+    setShareLoading(true);
+    try {
+      const res = await fetch(`${BACKEND}/share`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversation_id: convId,
+          user_email: userEmail,
+          query,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      const nextUrl = data.share_url as string;
+      setShareUrl(nextUrl);
+      await navigator.clipboard.writeText(nextUrl);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    } catch {}
+    setShareLoading(false);
+  }
+
   return (
     <div style={{ display: "flex", flex: 1, overflow: "hidden", height: "100%", minHeight: 0 }}>
 
@@ -631,6 +665,19 @@ export default function ChatClient({
               </svg>
               <span className="hidden sm:inline">Print</span>
             </button>
+            <button
+              onClick={handleShare}
+              disabled={!convId || shareLoading || !messages.some((m) => m.role === "user" && m.content.trim())}
+              className="flex items-center gap-1.5 text-xs px-2.5 sm:px-3 py-1.5 rounded-full bg-[var(--t-primary-light)] text-[var(--t-primary)] hover:opacity-85 font-medium transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Create a shareable link"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342A3 3 0 014.5 9.158l3.536-3.536a3 3 0 014.243 4.243L10.5 11.644m2.999-1.287a3 3 0 014.184 4.184l-3.536 3.536a3 3 0 01-4.243-4.243L13.5 12.356" />
+              </svg>
+              <span className="hidden sm:inline">
+                {shareLoading ? "Sharing..." : shareCopied ? "Link copied!" : "Share"}
+              </span>
+            </button>
             {/* DEV: system prompt debug toggle */}
             <button
               onClick={() => setShowPromptPanel((v) => !v)}
@@ -648,6 +695,19 @@ export default function ChatClient({
             </button>
           </div>
         </div>
+        {shareUrl && (
+          <div className="px-3 sm:px-6 py-2 border-b border-black/10 dark:border-gray-700 text-xs bg-white/70 dark:bg-gray-900/70">
+            <span className="text-gray-500 dark:text-gray-400 mr-2">Share link:</span>
+            <a
+              href={shareUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[var(--t-primary)] underline break-all"
+            >
+              {shareUrl}
+            </a>
+          </div>
+        )}
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-6 space-y-6" style={{ background: "var(--t-chat-bg, var(--t-bg))" }}>
