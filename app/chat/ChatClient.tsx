@@ -235,6 +235,7 @@ export default function ChatClient({
   const [shareLoading, setShareLoading] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareError, setShareError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<string | null>(null);
   const [likedPlaceNames, setLikedPlaceNames] = useState<Set<string>>(new Set());
   const [likedPlaceIds, setLikedPlaceIds] = useState<Record<string, string>>({});
@@ -603,6 +604,7 @@ export default function ChatClient({
     if (!convId || shareLoading) return;
     const query = getShareQuery();
     if (!query) return;
+    setShareError(null);
     setShareLoading(true);
     try {
       const res = await fetch(`${BACKEND}/share`, {
@@ -621,7 +623,9 @@ export default function ChatClient({
       await navigator.clipboard.writeText(nextUrl);
       setShareCopied(true);
       setTimeout(() => setShareCopied(false), 2000);
-    } catch {}
+    } catch {
+      setShareError("Failed to create share link. Please try again.");
+    }
     setShareLoading(false);
   }
 
@@ -706,6 +710,11 @@ export default function ChatClient({
             >
               {shareUrl}
             </a>
+          </div>
+        )}
+        {shareError && (
+          <div className="px-3 sm:px-6 py-2 border-b border-black/10 dark:border-gray-700 text-xs text-red-600 dark:text-red-400 bg-red-50/80 dark:bg-red-900/15">
+            {shareError}
           </div>
         )}
 

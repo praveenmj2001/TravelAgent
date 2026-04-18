@@ -53,6 +53,7 @@ def _migrate_db():
                 created_at DATETIME
             )
         """))
+        # Keep this schema aligned with models.ShareGist for startup-safe migration on existing DBs.
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS share_gists (
                 id VARCHAR PRIMARY KEY,
@@ -708,7 +709,6 @@ def create_share_gist(body: CreateShareRequest, db: Session = Depends(get_db)):
         conversation_id=conversation_id,
         user_email=user_email,
         query=query,
-        created_at=datetime.now(timezone.utc),
     )
     db.add(gist)
     db.commit()
