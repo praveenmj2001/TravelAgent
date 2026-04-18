@@ -616,15 +616,22 @@ export default function ChatClient({
           query,
         }),
       });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) {
+        let detail = "Failed to create share link.";
+        try {
+          const err = await res.json();
+          if (typeof err?.detail === "string" && err.detail.trim()) detail = err.detail;
+        } catch {}
+        throw new Error(detail);
+      }
       const data = await res.json();
       const nextUrl = data.share_url as string;
       setShareUrl(nextUrl);
       await navigator.clipboard.writeText(nextUrl);
       setShareCopied(true);
       setTimeout(() => setShareCopied(false), 2000);
-    } catch {
-      setShareError("Failed to create share link. Please try again.");
+    } catch (err) {
+      setShareError(err instanceof Error ? err.message : "Failed to create share link. Please try again.");
     }
     setShareLoading(false);
   }

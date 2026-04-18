@@ -316,6 +316,19 @@ def build_persona_context(profile: UserProfile) -> str:
     return "User travel profile:\n" + "\n".join(parts)
 
 
+def mask_email(email: str) -> str:
+    if "@" not in email:
+        return "***"
+    local, domain = email.split("@", 1)
+    if not local:
+        return f"***@{domain}"
+    if len(local) == 1:
+        return f"*@{domain}"
+    if len(local) == 2:
+        return f"{local[0]}*@{domain}"
+    return f"{local[:2]}{'*' * (len(local) - 2)}@{domain}"
+
+
 # ── Auth ─────────────────────────────────────────────────────────────────────
 
 @app.post("/auth/google")
@@ -728,7 +741,7 @@ def get_share_gist(share_id: str, db: Session = Depends(get_db)):
     return {
         "query": gist.query,
         "conversation_id": gist.conversation_id,
-        "user_email": gist.user_email,
+        "user_email": mask_email(gist.user_email),
         "created_at": gist.created_at,
     }
 
