@@ -8,6 +8,7 @@ import MapView, { MapWaypoint } from "./MapView";
 import PersonaSheet from "./PersonaSheet";
 import MicButton from "./MicButton";
 import PlaceModal from "./PlaceModal";
+import ShareModal from "./ShareModal";
 import { useVoiceInput } from "./useVoiceInput";
 import { TripPersona, EMPTY_PERSONA } from "./personaConfig";
 
@@ -235,6 +236,7 @@ export default function ChatClient({
   const [shareLoading, setShareLoading] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<string | null>(null);
   const [likedPlaceNames, setLikedPlaceNames] = useState<Set<string>>(new Set());
@@ -628,9 +630,12 @@ export default function ChatClient({
       const data = await res.json();
       const nextUrl = data.share_url as string;
       setShareUrl(nextUrl);
-      await navigator.clipboard.writeText(nextUrl);
-      setShareCopied(true);
-      setTimeout(() => setShareCopied(false), 2000);
+      setShowShareModal(true);
+      try {
+        await navigator.clipboard.writeText(nextUrl);
+        setShareCopied(true);
+        setTimeout(() => setShareCopied(false), 2000);
+      } catch {}
     } catch (err) {
       setShareError(err instanceof Error ? err.message : "Failed to create share link. Please try again.");
     }
@@ -964,6 +969,14 @@ export default function ChatClient({
             name={modalPlace.name}
             query={modalPlace.query || modalPlace.name}
             onClose={() => setModalPlace(null)}
+          />
+        )}
+
+        {/* Share modal */}
+        {showShareModal && shareUrl && (
+          <ShareModal
+            shareUrl={shareUrl}
+            onClose={() => setShowShareModal(false)}
           />
         )}
 
