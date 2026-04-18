@@ -3,10 +3,6 @@ type ShareGistResponse = {
   conversation_id: string;
   user_email: string;
   created_at: string;
-};
-
-type ConversationResponse = {
-  title: string;
   messages: Array<{ role: "user" | "assistant"; content: string }>;
 };
 
@@ -47,11 +43,6 @@ export default async function SharePage({
   }
 
   const gist = (await gistRes.json()) as ShareGistResponse;
-  let conversation: ConversationResponse | null = null;
-  if (gist.conversation_id) {
-    const convRes = await fetch(`${BACKEND}/conversations/${encodeURIComponent(gist.conversation_id)}`, { cache: "no-store" });
-    if (convRes.ok) conversation = (await convRes.json()) as ConversationResponse;
-  }
 
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900 p-6 sm:p-10">
@@ -66,9 +57,9 @@ export default async function SharePage({
 
         <section className="bg-white rounded-xl border border-gray-200 p-5 sm:p-6">
           <h2 className="text-lg font-semibold mb-4">Conversation / Itinerary</h2>
-          {conversation?.messages?.length ? (
+          {gist.messages?.length ? (
             <div className="space-y-3">
-              {conversation.messages.map((msg, idx) => (
+              {gist.messages.map((msg, idx) => (
                 <div
                   key={idx}
                   className={`rounded-xl px-4 py-3 text-sm whitespace-pre-wrap ${

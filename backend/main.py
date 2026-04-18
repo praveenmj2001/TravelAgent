@@ -738,11 +738,13 @@ def get_share_gist(share_id: str, db: Session = Depends(get_db)):
     gist = db.query(ShareGist).filter(ShareGist.id == share_id).first()
     if not gist:
         raise HTTPException(status_code=404, detail="Share not found")
+    conv = db.query(Conversation).filter(Conversation.id == gist.conversation_id).first()
     return {
         "query": gist.query,
         "conversation_id": gist.conversation_id,
         "user_email": mask_email(gist.user_email),
         "created_at": gist.created_at,
+        "messages": [{"role": m.role, "content": m.content} for m in (conv.messages if conv else [])],
     }
 
 
